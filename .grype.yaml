@@ -25,10 +25,27 @@ ignore:
     package:
       name: pip
       type: python
+  # pip 26.0.1 — GHSA-jp4c-xjxw-mgf9, fixed in 26.1.
+  # pip is CI runner tooling, not shipped.
+  - vulnerability: GHSA-jp4c-xjxw-mgf9
+    package:
+      name: pip
+      type: python
 
   # pytest pinned by pytest-homeassistant-custom-component
   # upper bound. Fixed in 9.0.3 (GHSA-6w46-j5rx-g56g).
   - vulnerability: GHSA-6w46-j5rx-g56g
     package:
       name: pytest
+      type: python
+
+  # urllib3 transitive dependency via homeassistant —
+  # pinned by homeassistant upper bound.
+  - vulnerability: GHSA-mf9v-mfxr-j63j
+    package:
+      name: urllib3
+      type: python
+  - vulnerability: GHSA-qccp-gfcp-xxvc
+    package:
+      name: urllib3
       type: python
