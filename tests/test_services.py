@@ -32,6 +32,7 @@ from custom_components.local_akuvox.const import (
     EVENT_SCHEDULE_CHANGED,
     EVENT_USER_CHANGED,
 )
+from custom_components.local_akuvox.lock import AkuvoxLockEntity
 from tests.conftest import setup_entry
 
 ENTITY_ID = "lock.testlab_intercom_front_gate"
@@ -2785,3 +2786,369 @@ async def test_remove_user_schedule_relay_device_errors(
             },
             blocking=True,
         )
+
+
+# ── Unit tests for cloud-provisioned helpers ─────────────────
+
+
+@pytest.mark.parametrize(
+    ("source", "source_type", "expected"),
+    [
+        (None, "1", False),
+        ("Local", "1", False),
+        ("Local", None, False),
+        (None, None, False),
+        ("", "", False),
+        ("", None, False),
+        (None, "", False),
+        ("Cloud", None, True),
+        ("Cloud", "2", True),
+        (None, "2", True),
+        ("SDMC", None, True),
+        ("SDMC", "2", True),
+        (None, "3", True),
+        (None, "4", True),
+    ],
+    ids=[
+        "local-numeric",
+        "local-source-and-type",
+        "local-source-only",
+        "both-none",
+        "both-empty",
+        "empty-source-none-type",
+        "none-source-empty-type",
+        "cloud-source-none-type",
+        "cloud-source-and-type",
+        "none-source-cloud-type",
+        "sdmc-source-none-type",
+        "sdmc-source-cloud-type",
+        "acms-type",
+        "sdmc-type",
+    ],
+)
+def test_is_cloud_provisioned_user(
+    source: str | None,
+    source_type: str | None,
+    expected: bool,
+) -> None:
+    """Test _is_cloud_provisioned_user with various firmware variants."""
+    user = User(
+        id="1",
+        name="Test",
+        user_id="test",
+        schedule_relay="",
+        web_relay=None,
+        private_pin=None,
+        card_code=None,
+        lift_floor_num=None,
+        user_type=None,
+        source=source,
+        source_type=source_type,
+    )
+    assert AkuvoxLockEntity._is_cloud_provisioned_user(user) is expected
+
+
+@pytest.mark.parametrize(
+    ("source_type", "expected"),
+    [
+        ("1", False),
+        (None, False),
+        ("", False),
+        ("2", True),
+        ("3", True),
+        ("4", True),
+    ],
+    ids=[
+        "local",
+        "none",
+        "empty",
+        "cloud",
+        "acms",
+        "sdmc",
+    ],
+)
+def test_is_cloud_provisioned_schedule(
+    source_type: str | None,
+    expected: bool,
+) -> None:
+    """Test _is_cloud_provisioned_schedule with various source_type codes."""
+    schedule = AccessSchedule(
+        id="1",
+        schedule_type="1",
+        name="Test",
+        week=None,
+        daily=None,
+        date_start=None,
+        date_end=None,
+        time_start="00:00",
+        time_end="23:59",
+        display_id="10",
+        source_type=source_type,
+        mode=None,
+        sun=None,
+        mon=None,
+        tue=None,
+        wed=None,
+        thur=None,
+        fri=None,
+        sat=None,
+    )
+    assert AkuvoxLockEntity._is_cloud_provisioned_schedule(schedule) is expected
+
+
+# ── Integration tests: SDMC / ACMS / Cloud-source variants ──
+
+
+def _make_schedule_list(
+    cloud_source_type: str,
+) -> list[AccessSchedule]:
+    """Build a schedule list with the given cloud source_type."""
+    return [
+        AccessSchedule(
+            id="1",
+            schedule_type="1",
+            name="Local",
+            week="12345",
+            daily=None,
+            date_start=None,
+            date_end=None,
+            time_start="08:00",
+            time_end="18:00",
+            display_id="10",
+            source_type="1",
+            mode=None,
+            sun=None,
+            mon=None,
+            tue=None,
+            wed=None,
+            thur=None,
+            fri=None,
+            sat=None,
+        ),
+        AccessSchedule(
+            id="2",
+            schedule_type="2",
+            name="NonLocal",
+            week=None,
+            daily="00:00-23:59",
+            date_start=None,
+            date_end=None,
+            time_start="00:00",
+            time_end="23:59",
+            display_id="20",
+            source_type=cloud_source_type,
+            mode=None,
+            sun=None,
+            mon=None,
+            tue=None,
+            wed=None,
+            thur=None,
+            fri=None,
+            sat=None,
+        ),
+    ]
+
+
+def _make_user_list(
+    *,
+    source: str | None,
+    source_type: str | None,
+) -> list[User]:
+    """Build a user list with the given cloud user fields."""
+    return [
+        User(
+            id="42",
+            name="Local User",
+            user_id="local",
+            schedule_relay="10-1",
+            web_relay=None,
+            private_pin="1234",
+            card_code="ABC123",
+            lift_floor_num="3",
+            user_type=None,
+            source=None,
+            source_type="1",
+        ),
+        User(
+            id="99",
+            name="Cloud User",
+            user_id="cloud",
+            schedule_relay="20-1",
+            web_relay=None,
+            private_pin="5678",
+            card_code=None,
+            lift_floor_num="1",
+            user_type=None,
+            source=source,
+            source_type=source_type,
+        ),
+    ]
+
+
+@pytest.mark.parametrize(
+    "cloud_source_type",
+    ["3", "4"],
+    ids=["acms", "sdmc"],
+)
+async def test_modify_schedule_nonlocal_rejected(
+    hass: HomeAssistant,
+    mock_config_entry_data_none: dict[str, Any],
+    mock_akuvox_device: AsyncMock,
+    cloud_source_type: str,
+) -> None:
+    """Test ACMS/SDMC schedule raises ServiceValidationError."""
+    mock_akuvox_device.list_schedules.return_value = _make_schedule_list(
+        cloud_source_type,
+    )
+    await setup_entry(hass, mock_config_entry_data_none)
+
+    with pytest.raises(ServiceValidationError, match="[Cc]loud"):
+        await hass.services.async_call(
+            DOMAIN,
+            "modify_schedule",
+            service_data={
+                "entity_id": ENTITY_ID,
+                "id": "2",
+                "name": "Attempt Modify",
+            },
+            blocking=True,
+        )
+
+    mock_akuvox_device.modify_schedule.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "cloud_source_type",
+    ["3", "4"],
+    ids=["acms", "sdmc"],
+)
+async def test_delete_schedule_nonlocal_rejected(
+    hass: HomeAssistant,
+    mock_config_entry_data_none: dict[str, Any],
+    mock_akuvox_device: AsyncMock,
+    cloud_source_type: str,
+) -> None:
+    """Test ACMS/SDMC schedule delete raises ServiceValidationError."""
+    mock_akuvox_device.list_schedules.return_value = _make_schedule_list(
+        cloud_source_type,
+    )
+    await setup_entry(hass, mock_config_entry_data_none)
+
+    with pytest.raises(ServiceValidationError, match="[Cc]loud"):
+        await hass.services.async_call(
+            DOMAIN,
+            "delete_schedule",
+            service_data={
+                "entity_id": ENTITY_ID,
+                "id": "2",
+            },
+            blocking=True,
+        )
+
+    mock_akuvox_device.delete_schedule.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "cloud_source_type",
+    ["3", "4"],
+    ids=["acms", "sdmc"],
+)
+async def test_add_user_nonlocal_schedule_rejected(
+    hass: HomeAssistant,
+    mock_config_entry_data_none: dict[str, Any],
+    mock_akuvox_device: AsyncMock,
+    cloud_source_type: str,
+) -> None:
+    """Test ACMS/SDMC schedule in add_user raises error."""
+    mock_akuvox_device.list_schedules.return_value = _make_schedule_list(
+        cloud_source_type,
+    )
+    await setup_entry(hass, mock_config_entry_data_none)
+
+    with pytest.raises(ServiceValidationError, match="[Cc]loud"):
+        await hass.services.async_call(
+            DOMAIN,
+            "add_user",
+            service_data={
+                "entity_id": ENTITY_ID,
+                "name": "Jane Doe",
+                "schedules": ["20"],
+                "lift_floor_num": "5",
+            },
+            blocking=True,
+        )
+
+    mock_akuvox_device.add_user.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("source", "source_type"),
+    [
+        ("Cloud", None),
+        ("Cloud", "2"),
+    ],
+    ids=["cloud-source-none-type", "cloud-source-and-type"],
+)
+async def test_modify_user_cloud_source_rejected(
+    hass: HomeAssistant,
+    mock_config_entry_data_none: dict[str, Any],
+    mock_akuvox_device: AsyncMock,
+    source: str | None,
+    source_type: str | None,
+) -> None:
+    """Test cloud user (source field) raises ServiceValidationError."""
+    mock_akuvox_device.list_users.return_value = _make_user_list(
+        source=source,
+        source_type=source_type,
+    )
+    await setup_entry(hass, mock_config_entry_data_none)
+
+    with pytest.raises(ServiceValidationError, match="[Cc]loud"):
+        await hass.services.async_call(
+            DOMAIN,
+            "modify_user",
+            service_data={
+                "entity_id": ENTITY_ID,
+                "id": "99",
+                "name": "New Name",
+            },
+            blocking=True,
+        )
+
+    mock_akuvox_device.modify_user.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("source", "source_type"),
+    [
+        ("Cloud", None),
+        ("Cloud", "2"),
+    ],
+    ids=["cloud-source-none-type", "cloud-source-and-type"],
+)
+async def test_delete_user_cloud_source_rejected(
+    hass: HomeAssistant,
+    mock_config_entry_data_none: dict[str, Any],
+    mock_akuvox_device: AsyncMock,
+    source: str | None,
+    source_type: str | None,
+) -> None:
+    """Test cloud user (source field) delete raises error."""
+    mock_akuvox_device.list_users.return_value = _make_user_list(
+        source=source,
+        source_type=source_type,
+    )
+    await setup_entry(hass, mock_config_entry_data_none)
+
+    with pytest.raises(ServiceValidationError, match="[Cc]loud"):
+        await hass.services.async_call(
+            DOMAIN,
+            "delete_user",
+            service_data={
+                "entity_id": ENTITY_ID,
+                "id": "99",
+            },
+            blocking=True,
+        )
+
+    mock_akuvox_device.delete_user.assert_not_called()

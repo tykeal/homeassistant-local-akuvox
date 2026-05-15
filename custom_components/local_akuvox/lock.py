@@ -766,7 +766,7 @@ class AkuvoxLockEntity(AkuvoxEntity, LockEntity):
                 f"Schedule '{schedule_id}' not found",
             )
 
-        if target.source_type == "2":
+        if self._is_cloud_provisioned_schedule(target):
             raise ServiceValidationError(
                 f"Cannot {action} cloud-provisioned schedule",
             )
@@ -902,6 +902,42 @@ class AkuvoxLockEntity(AkuvoxEntity, LockEntity):
             event_data["config_entry_id"] = config_entry.entry_id
         self.hass.bus.async_fire(EVENT_SCHEDULE_CHANGED, event_data)
 
+    @staticmethod
+    def _is_cloud_provisioned_user(user: User) -> bool:
+        """Return True if the user is cloud-provisioned.
+
+        Akuvox firmware varies across models and versions:
+          - E18C/A08S may set ``source_type`` to ``"2"`` (cloud)
+            or ``source`` to ``"Cloud"``
+          - X916 may omit ``source_type`` entirely
+          - SDMC-managed users may have ``"SDMC"`` as source
+
+        This checks both fields to handle all known variants.
+        """
+        if user.source is not None and user.source not in ("Local", ""):
+            return True
+        return user.source_type is not None and user.source_type not in (
+            "1",
+            "Local",
+            "",
+        )
+
+    @staticmethod
+    def _is_cloud_provisioned_schedule(
+        schedule: AccessSchedule,
+    ) -> bool:
+        """Return True if the schedule is cloud-provisioned.
+
+        Schedule ``source_type`` uses numeric codes:
+        ``"1"``=Local, ``"2"``=Cloud, ``"3"``=ACMS, ``"4"``=SDMC.
+        Treated as local when absent, empty, or ``"1"``;
+        otherwise non-local.
+        """
+        return schedule.source_type is not None and schedule.source_type not in (
+            "1",
+            "",
+        )
+
     def _validate_pin(self, pin: str | None) -> None:
         """Validate private_pin is 4-8 digits if provided.
 
@@ -961,7 +997,7 @@ class AkuvoxLockEntity(AkuvoxEntity, LockEntity):
                 f"{service}: user '{user_id}' not found",
             )
 
-        if target.source_type == "2":
+        if self._is_cloud_provisioned_user(target):
             raise ServiceValidationError(
                 f"{service}: user is cloud-provisioned",
             )
@@ -1007,7 +1043,7 @@ class AkuvoxLockEntity(AkuvoxEntity, LockEntity):
                 raise ServiceValidationError(
                     f"Schedule '{did}' not found on device",
                 )
-            if sched.source_type == "2":
+            if self._is_cloud_provisioned_schedule(sched):
                 raise ServiceValidationError(
                     "Cannot assign cloud-provisioned schedule",
                 )
