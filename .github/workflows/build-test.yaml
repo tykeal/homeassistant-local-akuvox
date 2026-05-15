@@ -1,6 +1,6 @@
 ---
 # SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: 2025 The Linux Foundation
+# SPDX-FileCopyrightText: 2026 Andrew Grimberg <tykeal@bardicgrove.org>
 
 # Runs on a new pull request, performs build and runs tests
 name: 'Python Build/Test'
@@ -18,20 +18,12 @@ on:
     types: [opened, reopened, edited, synchronize]
     branches:
       - main
-      - master
-    paths:
-      - '**'
-      - '!.github/**'
-      - '!.*'
-      - '.grype.yaml'
-      - '!tox.ini'
 
 concurrency:
   group: "${{ github.workflow }}-${{ github.ref }}"
   cancel-in-progress: true
 
-permissions:
-  actions: write  # Required for cache deletion when clear_cache is true
+permissions: {}
 
 jobs:
   repository-metadata:
