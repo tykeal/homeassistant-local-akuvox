@@ -2896,6 +2896,101 @@ def test_is_cloud_provisioned_schedule(
     assert AkuvoxLockEntity._is_cloud_provisioned_schedule(schedule) is expected
 
 
+@pytest.mark.parametrize(
+    ("display_id", "source_type", "expected"),
+    [
+        ("1001", "2", False),
+        ("1001", "4", False),
+        ("1002", "2", False),
+        ("1002", "4", False),
+        ("1001", "3", False),
+        ("5000", "2", True),
+    ],
+    ids=[
+        "factory-1001-cloud",
+        "factory-1001-sdmc",
+        "factory-1002-cloud",
+        "factory-1002-sdmc",
+        "factory-1001-acms",
+        "non-factory-cloud",
+    ],
+)
+def test_is_cloud_provisioned_schedule_factory(
+    display_id: str,
+    source_type: str,
+    expected: bool,
+) -> None:
+    """Test factory schedules 1001/1002 are exempt from cloud check."""
+    schedule = AccessSchedule(
+        id="1",
+        schedule_type="1",
+        name="Test",
+        week=None,
+        daily=None,
+        date_start=None,
+        date_end=None,
+        time_start="00:00",
+        time_end="23:59",
+        display_id=display_id,
+        source_type=source_type,
+        mode=None,
+        sun=None,
+        mon=None,
+        tue=None,
+        wed=None,
+        thur=None,
+        fri=None,
+        sat=None,
+    )
+    assert AkuvoxLockEntity._is_cloud_provisioned_schedule(schedule) is expected
+
+
+async def test_check_cloud_schedules_allows_factory_sdmc(
+    hass: HomeAssistant,
+    mock_config_entry_data_none: dict[str, Any],
+    mock_akuvox_device: AsyncMock,
+) -> None:
+    """Test _check_cloud_schedules passes factory schedule 1001 with SDMC."""
+    mock_akuvox_device.list_schedules.return_value = [
+        AccessSchedule(
+            id="1",
+            schedule_type="1",
+            name="Always",
+            week=None,
+            daily="00:00-23:59",
+            date_start=None,
+            date_end=None,
+            time_start="00:00",
+            time_end="23:59",
+            display_id="1001",
+            source_type="4",
+            mode=None,
+            sun=None,
+            mon=None,
+            tue=None,
+            wed=None,
+            thur=None,
+            fri=None,
+            sat=None,
+        ),
+    ]
+    mock_akuvox_device.add_user.return_value = None
+    await setup_entry(hass, mock_config_entry_data_none)
+
+    # Should NOT raise – factory schedule 1001 is always allowed
+    await hass.services.async_call(
+        DOMAIN,
+        "add_user",
+        service_data={
+            "entity_id": ENTITY_ID,
+            "name": "Test User",
+            "schedules": ["1001"],
+            "lift_floor_num": "1",
+        },
+        blocking=True,
+    )
+
+
 # ── Integration tests: SDMC / ACMS / Cloud-source variants ──
 
 
