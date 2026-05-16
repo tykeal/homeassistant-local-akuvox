@@ -10,7 +10,7 @@ import logging
 import re
 import time
 from collections.abc import Callable, Coroutine
-from typing import Any, cast
+from typing import Any, ClassVar, cast
 
 from homeassistant.components.lock import LockEntity
 from homeassistant.config_entries import ConfigEntry
@@ -922,6 +922,8 @@ class AkuvoxLockEntity(AkuvoxEntity, LockEntity):
             "",
         )
 
+    _FACTORY_SCHEDULE_IDS: ClassVar[frozenset[str]] = frozenset({"1001", "1002"})
+
     @staticmethod
     def _is_cloud_provisioned_schedule(
         schedule: AccessSchedule,
@@ -932,7 +934,13 @@ class AkuvoxLockEntity(AkuvoxEntity, LockEntity):
         ``"1"``=Local, ``"2"``=Cloud, ``"3"``=ACMS, ``"4"``=SDMC.
         Treated as local when absent, empty, or ``"1"``;
         otherwise non-local.
+
+        Factory schedules 1001 ("Always") and 1002 ("Never") are
+        always treated as local even when a cloud enrolment sets
+        their ``source_type`` to a non-local value.
         """
+        if schedule.display_id in AkuvoxLockEntity._FACTORY_SCHEDULE_IDS:
+            return False
         return schedule.source_type is not None and schedule.source_type not in (
             "1",
             "",
