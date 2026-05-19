@@ -228,6 +228,9 @@ class AkuvoxConfigFlow(ConfigFlow, domain=DOMAIN):
             auth=auth_config,
             use_ssl=self._data.get(CONF_USE_SSL, False),
             verify_ssl=self._data.get(CONF_VERIFY_SSL, True),
+            request_delay=float(  # type: ignore[call-arg]
+                self._data.get(CONF_REQUEST_DELAY, DEFAULT_REQUEST_DELAY)
+            ),
         )
 
         try:
@@ -383,6 +386,9 @@ class AkuvoxConfigFlow(ConfigFlow, domain=DOMAIN):
             auth=auth_config,
             use_ssl=self._data.get(CONF_USE_SSL, False),
             verify_ssl=self._data.get(CONF_VERIFY_SSL, True),
+            request_delay=float(  # type: ignore[call-arg]
+                self._data.get(CONF_REQUEST_DELAY, DEFAULT_REQUEST_DELAY)
+            ),
         )
         async with device:
             await device.set_device_config(payload)  # type: ignore[attr-defined]
@@ -548,6 +554,9 @@ class AkuvoxOptionsFlow(OptionsFlow):
             use_ssl=bool(effective.get(CONF_USE_SSL, False)),
             verify_ssl=bool(
                 effective.get(CONF_VERIFY_SSL, True),
+            ),
+            request_delay=float(  # type: ignore[call-arg]
+                effective.get(CONF_REQUEST_DELAY, DEFAULT_REQUEST_DELAY)
             ),
         )
 
