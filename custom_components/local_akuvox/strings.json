@@ -69,7 +69,11 @@
           "auth_method": "Authentication Method",
           "username": "Username",
           "password": "Password",
-          "webhook_enabled": "Enable Webhooks"
+          "webhook_enabled": "Enable Webhooks",
+          "request_delay": "Request delay (seconds)"
+        },
+        "data_description": {
+          "request_delay": "Delay between consecutive API requests to the device. Increase if the device becomes unresponsive during batch operations."
         }
       }
     }

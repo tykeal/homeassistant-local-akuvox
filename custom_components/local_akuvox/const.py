@@ -102,6 +102,8 @@ CONF_VERIFY_SSL: Final = "verify_ssl"
 CONF_AUTH_METHOD: Final = "auth_method"
 CONF_USERNAME: Final = "username"
 CONF_PASSWORD: Final = "password"  # noqa: S105
+CONF_REQUEST_DELAY: Final = "request_delay"
+DEFAULT_REQUEST_DELAY: Final = 0.25
 
 # Auth mode constants
 AUTH_NONE: Final = "none"

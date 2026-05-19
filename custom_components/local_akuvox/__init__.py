@@ -21,11 +21,13 @@ from .const import (
     CONF_AUTH_METHOD,
     CONF_HOST,
     CONF_PASSWORD,
+    CONF_REQUEST_DELAY,
     CONF_USE_SSL,
     CONF_USERNAME,
     CONF_VERIFY_SSL,
     CONF_WEBHOOK_ENABLED,
     CONF_WEBHOOK_ID,
+    DEFAULT_REQUEST_DELAY,
     DOMAIN,
     PLATFORMS,
     SERVICE_ADD_CONTACT,
@@ -396,11 +398,18 @@ def _create_device(entry: ConfigEntry) -> AkuvoxDevice:
     else:
         auth_config = AuthConfig(method=auth_method)
 
+    request_delay = float(
+        _get_config_value(  # type: ignore[arg-type]
+            entry, CONF_REQUEST_DELAY, DEFAULT_REQUEST_DELAY
+        )
+    )
+
     return AkuvoxDevice(
         host=host,
         auth=auth_config,
         use_ssl=use_ssl,
         verify_ssl=verify_ssl,
+        request_delay=request_delay,  # type: ignore[call-arg]
     )
 
 
