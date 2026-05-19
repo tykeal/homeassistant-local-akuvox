@@ -28,11 +28,13 @@ from .const import (
     CONF_AUTH_METHOD,
     CONF_HOST,
     CONF_PASSWORD,
+    CONF_REQUEST_DELAY,
     CONF_USE_SSL,
     CONF_USERNAME,
     CONF_VERIFY_SSL,
     CONF_WEBHOOK_ENABLED,
     CONF_WEBHOOK_ID,
+    DEFAULT_REQUEST_DELAY,
     DOMAIN,
     get_auth_method_map,
 )
@@ -598,6 +600,10 @@ class AkuvoxOptionsFlow(OptionsFlow):
                     CONF_PASSWORD,
                     default=current.get(CONF_PASSWORD, ""),
                 ): str,
+                vol.Optional(
+                    CONF_REQUEST_DELAY,
+                    default=current.get(CONF_REQUEST_DELAY, DEFAULT_REQUEST_DELAY),
+                ): vol.All(vol.Coerce(float), vol.Range(min=0.0, max=5.0)),
                 vol.Required(
                     CONF_WEBHOOK_ENABLED,
                     default=current.get(CONF_WEBHOOK_ENABLED, False),
