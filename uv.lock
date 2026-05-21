@@ -1813,7 +1813,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "homeassistant", specifier = ">=2026.2.0" },
-    { name = "pylocal-akuvox", specifier = ">=0.4.0" },
+    { name = "pylocal-akuvox", specifier = ">=0.4.1" },
     { name = "pytest", marker = "extra == 'test'", specifier = ">=9.0.0" },
     { name = "pytest-asyncio", marker = "extra == 'test'", specifier = ">=1.3.0" },
     { name = "pytest-cov", marker = "extra == 'test'", specifier = ">=7.0.0" },
@@ -2642,15 +2642,15 @@ wheels = [
 
 [[package]]
 name = "pylocal-akuvox"
-version = "0.4.0"
+version = "0.4.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp", version = "3.13.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.14.2'" },
     { name = "aiohttp", version = "3.13.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.14.2'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/38/9c/bae3de6806524afe8219168bc1961f50b0aa0d2eae0f141fe14ba7bf7753/pylocal_akuvox-0.4.0.tar.gz", hash = "sha256:d41353ec57f99fb286e3c5bff7c397b13edbd1aa79cd7c74d52726bf6e037f87", size = 251177, upload-time = "2026-05-19T12:35:14.503Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e0/70/1b8234ca12bf1e3d42193751bf3668216dddb0bd57e70acc7720a4b91aff/pylocal_akuvox-0.4.1.tar.gz", hash = "sha256:848645b5143da950702ffa6c9c914dcf1dac9fbaa537a6b3bd608ece43f7ed42", size = 265122, upload-time = "2026-05-21T22:39:36.903Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/c1/ed/89c606b0abc29b69464f03d734eac29c7bea3e97530b96b92f26f98fc200/pylocal_akuvox-0.4.0-py3-none-any.whl", hash = "sha256:c9901e22bfa62515d6c3634d14043d23c5151266de58f29302a66db57edbebf6", size = 26695, upload-time = "2026-05-19T12:35:12.937Z" },
+    { url = "https://files.pythonhosted.org/packages/bb/3b/6c4e06f04e08fac3d7a602a3d023ad37604d0aed298b40ae3829448e4300/pylocal_akuvox-0.4.1-py3-none-any.whl", hash = "sha256:5e5999dbd82948f24330cc8027a343b15b81919e9baa3b1e6153a34a1e39da0b", size = 26923, upload-time = "2026-05-21T22:39:35.555Z" },
 ]
 
 [[package]]

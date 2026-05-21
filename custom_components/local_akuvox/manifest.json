@@ -6,6 +6,6 @@
   "documentation": "https://github.com/tykeal/homeassistant-local-akuvox",
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/tykeal/homeassistant-local-akuvox/issues",
-  "requirements": ["pylocal-akuvox>=0.4.0"],
+  "requirements": ["pylocal-akuvox>=0.4.1"],
   "version": "0.0.0"
 }
