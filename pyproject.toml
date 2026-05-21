@@ -12,7 +12,7 @@ description = "Home Assistant custom integration for Akuvox intercom devices"
 requires-python = ">=3.13.2"
 dependencies = [
     "homeassistant>=2026.2.0",
-    "pylocal-akuvox>=0.4.0",
+    "pylocal-akuvox>=0.4.1",
 ]
 
 [project.optional-dependencies]

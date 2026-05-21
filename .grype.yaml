@@ -49,3 +49,10 @@ ignore:
     package:
       name: urllib3
       type: python
+
+  # idna transitive dependency via homeassistant/requests.
+  # Fixed in 3.15, but pinned indirectly by upstream deps.
+  - vulnerability: GHSA-65pc-fj4g-8rjx
+    package:
+      name: idna
+      type: python
