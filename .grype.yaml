@@ -2,6 +2,16 @@
 # SPDX-License-Identifier: Apache-2.0
 ---
 ignore:
+  # aiohttp transitive dependency via homeassistant.
+  - vulnerability: GHSA-hg6j-4rv6-33pg
+    package:
+      name: aiohttp
+      type: python
+  - vulnerability: GHSA-jg22-mg44-37j8
+    package:
+      name: aiohttp
+      type: python
+
   # pillow transitive dependency via homeassistant — PSD
   # out-of-bounds write (CVE-2026-25990), fixed in 12.1.1.
   # We cannot pin pillow directly because it comes from
@@ -39,6 +49,12 @@ ignore:
       name: pytest
       type: python
 
+  # uv is dev tooling, not a project dependency.
+  - vulnerability: GHSA-4gg8-gxpx-9rph
+    package:
+      name: uv
+      type: python
+
   # urllib3 transitive dependency via homeassistant —
   # pinned by homeassistant upper bound.
   - vulnerability: GHSA-mf9v-mfxr-j63j
@@ -55,4 +71,18 @@ ignore:
   - vulnerability: GHSA-65pc-fj4g-8rjx
     package:
       name: idna
+      type: python
+
+  # zeroconf transitive dependency via homeassistant.
+  - vulnerability: GHSA-9pgc-3ccv-5297
+    package:
+      name: zeroconf
+      type: python
+  - vulnerability: GHSA-phvx-9mgw-67r5
+    package:
+      name: zeroconf
+      type: python
+  - vulnerability: GHSA-rfg2-pjw2-56x2
+    package:
+      name: zeroconf
       type: python

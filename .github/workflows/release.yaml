@@ -199,6 +199,7 @@ jobs:
           # pyopenssl (via homeassistant)
           # requests (via pip tooling)
           # uv (dev tooling)
+          # zeroconf (via homeassistant)
           ignore_vulns: >-
             CVE-2026-22815
             CVE-2026-25645
@@ -216,6 +217,7 @@ jobs:
             CVE-2026-34519
             CVE-2026-34520
             CVE-2026-34525
+            CVE-2026-34993
             CVE-2026-39892
             CVE-2026-40192
             CVE-2025-67221
@@ -223,11 +225,21 @@ jobs:
             CVE-2026-42309
             CVE-2026-42310
             CVE-2026-42311
+            CVE-2026-47180
+            CVE-2026-47183
+            CVE-2026-47184
+            CVE-2026-47265
+            GHSA-4gg8-gxpx-9rph
             GHSA-4xh5-x5gv-qwph
             GHSA-65pc-fj4g-8rjx
             GHSA-cfh3-3jmp-rvhc
             GHSA-pjjw-68hj-v9mw
             PYSEC-2025-183
+            PYSEC-2026-175
+            PYSEC-2026-176
+            PYSEC-2026-177
+            PYSEC-2026-178
+            PYSEC-2026-179
 
   sbom:
     name: 'Generate SBOM'
