@@ -194,8 +194,8 @@ jobs:
         with:
           python_version: "${{ matrix.python-version }}"
           permit_fail: "${{ vars.NO_BLOCK_AUDIT_FAIL == 'true' }}"
-          # pip CVE-2026-3219: concatenated tar/ZIP handling in pip
-          # itself (runner tooling, not project dependency)
+          # pip advisory GHSA-58qw-9mgm-455v affects pip's own
+          # archive handling (runner tooling, not project dependency)
           ignore_vulns: 'GHSA-58qw-9mgm-455v'
 
   sbom:
