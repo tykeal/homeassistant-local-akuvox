@@ -220,6 +220,7 @@ jobs:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
 
       - name: "Audit dependencies ${{ matrix.python-version }}"
+        continue-on-error: "${{ vars.NO_BLOCK_AUDIT_FAIL == 'true' }}"
         # yamllint disable-line rule:line-length
         uses: lfreleng-actions/python-audit-action@78b00a589ced3e8f70d0cd03fd592b8c92298dfd  # v0.3.0
         with:
@@ -228,6 +229,8 @@ jobs:
           # pip advisory GHSA-58qw-9mgm-455v affects pip's own
           # archive handling (runner tooling, not project dependency)
           ignore_vulns: 'GHSA-58qw-9mgm-455v'
+        env:
+          PIP_CONSTRAINT: ".github/python-audit/constraints.txt"
 
   sbom:
     name: 'Generate SBOM'
