@@ -47,7 +47,8 @@ after extraction.
      │                 __init__.py                 │
      │                                             │
      │ • CONFIG_SCHEMA                             │
-     │ • async_setup() → calls register_services() │
+     │ • async_setup() → calls                      │
+     │   async_register_services()                 │
      │ • async_setup_entry()                       │
      │ • async_unload_entry()                      │
      │ • async_remove_entry()                      │
