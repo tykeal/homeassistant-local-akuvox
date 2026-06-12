@@ -76,18 +76,23 @@ after extracting `AkuvoxOptionsFlow`.
 - Options flow **basic** tests in `tests/test_config_flow.py` (lines 421–797)
   already patch `custom_components.local_akuvox.AkuvoxDevice` at the package
   (`__init__.py`) level and need **zero changes**.
-- Only options flow **webhook** tests in `tests/test_config_flow.py` (lines
-  1080+) patch `custom_components.local_akuvox.config_flow.AkuvoxDevice`; those
-  targets must change to
+- Within the options flow **webhook** test section in
+  `tests/test_config_flow.py` (lines 1080+), the
+  `custom_components.local_akuvox.config_flow.AkuvoxDevice` patch occurrences
+  must change to
   `custom_components.local_akuvox.options_flow.AkuvoxDevice`.
-- Tests for `AkuvoxConfigFlow` keep their existing patch targets.
+- Other tests may still patch
+  `custom_components.local_akuvox.config_flow.AkuvoxDevice`, but those remain
+  correct when they exercise `AkuvoxConfigFlow` rather than
+  `AkuvoxOptionsFlow`.
 
 **Rationale**: Python's `unittest.mock.patch` must target the name where the
 code under test looks it up. The basic options tests already patch the
 package-level `AkuvoxDevice` reference they exercise, so the refactor does not
 affect them. The webhook options tests patch the class through `config_flow.py`;
 once `AkuvoxOptionsFlow` moves, those specific patches must follow the class to
-`options_flow.py`.
+`options_flow.py`, while config-flow tests that still exercise
+`AkuvoxConfigFlow` keep their original patch target.
 
 **Affected test files**:
 

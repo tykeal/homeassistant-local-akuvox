@@ -37,8 +37,9 @@ modification (aside from import paths).
 2. **Given** an invalid host is entered during setup, **When** the form is
    submitted, **Then** the same validation error appears as before the refactor.
 3. **Given** all setup steps are completed successfully, **When** the config
-   entry is created, **Then** the entry data structure is byte-for-byte
-   identical to what the pre-refactor code would produce.
+   entry is created, **Then** the resulting entry preserves the same structure,
+   keys, validation behavior, and generated-value formats as the pre-refactor
+   implementation.
 
 ---
 
