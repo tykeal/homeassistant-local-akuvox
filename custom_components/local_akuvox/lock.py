@@ -870,7 +870,6 @@ class AkuvoxLockEntity(AkuvoxEntity, LockEntity):
                 f"delete_schedule failed: {err}",
             ) from err
 
-        # Check for orphaned user-schedule assignments
         try:
             users = await self.coordinator.device.list_users(page=None)
             for user in users:
@@ -1384,7 +1383,6 @@ class AkuvoxLockEntity(AkuvoxEntity, LockEntity):
             )
         pairs.remove(target_pair)
 
-        # Validate remaining schedule IDs against cloud.
         remaining_sched_ids = [p.split("-", 1)[0] for p in pairs]
         await self._check_cloud_schedules(remaining_sched_ids)
 

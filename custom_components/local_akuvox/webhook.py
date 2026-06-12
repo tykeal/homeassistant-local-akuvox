@@ -10,7 +10,8 @@ import logging
 import re
 from typing import TYPE_CHECKING, Final
 
-from aiohttp import web
+# aislop-ignore-next-line ai-slop/hallucinated-import -- provided by homeassistant
+from aiohttp import web  # provided by homeassistant
 from homeassistant.components.webhook import (
     async_generate_url,
     async_register,
@@ -176,8 +177,10 @@ async def async_handle_webhook(
         HTTP response (200 or 400).
 
     """
-    # Step 1: Look up config_entry_id from registry
-    registry: dict[str, str] = hass.data.get(DOMAIN, {}).get("webhook_registry", {})
+    domain_data = hass.data.get(DOMAIN)
+    registry: dict[str, str] = (
+        domain_data.get("webhook_registry", {}) if domain_data else {}
+    )
     config_entry_id = registry.get(webhook_id)
     if config_entry_id is None:
         _LOGGER.warning(
@@ -186,7 +189,6 @@ async def async_handle_webhook(
         )
         return web.Response(status=200, body=b"")
 
-    # Step 2: Get coordinator
     try:
         coordinator: AkuvoxDataUpdateCoordinator = hass.data[DOMAIN][config_entry_id]
     except KeyError:
@@ -196,10 +198,8 @@ async def async_handle_webhook(
         )
         return web.Response(status=200, body=b"")
 
-    # Step 3: Parse query parameters
     query_params = dict(request.query)
 
-    # Step 4: Extract event parameter
     raw_event = query_params.get("event")
     if raw_event is None:
         sanitized = sanitize_payload(query_params, webhook_id=webhook_id)
@@ -211,7 +211,6 @@ async def async_handle_webhook(
 
     device_id = _get_device_id(hass, config_entry_id)
 
-    # Step 5: Determine event type
     if raw_event not in KNOWN_EVENT_TYPES:
         normalized = _normalize_event_type(raw_event)
         event_type = f"unknown_{normalized}"
@@ -233,13 +232,11 @@ async def async_handle_webhook(
 
     event_type = raw_event
 
-    # Step 6: User lookup for valid code events
     user = None
     code_value = query_params.get("code")
     if event_type == "valid_code_entered" and code_value:
         user = await _resolve_user(hass, coordinator, code_value, config_entry_id)
 
-    # Step 7: Fire HA event
     hass.bus.async_fire(
         EVENT_WEBHOOK_RECEIVED,
         {
@@ -337,21 +334,19 @@ def async_unregister_webhook(
     if webhook_id is None:
         return
 
-    registry: dict[str, str] = hass.data.get(DOMAIN, {}).get("webhook_registry", {})
+    domain_data = hass.data.get(DOMAIN)
+    registry: dict[str, str] = (
+        domain_data.get("webhook_registry", {}) if domain_data else {}
+    )
     if webhook_id not in registry:
         return
 
     async_unregister(hass, webhook_id)
 
-    # Remove from integration registry
     registry.pop(webhook_id, None)
 
-    # Clean up empty webhook_registry
-    if (
-        "webhook_registry" in hass.data.get(DOMAIN, {})
-        and not hass.data[DOMAIN]["webhook_registry"]
-    ):
-        hass.data[DOMAIN].pop("webhook_registry", None)
+    if domain_data and "webhook_registry" in domain_data and not registry:
+        domain_data.pop("webhook_registry", None)
 
     _LOGGER.debug(
         "Unregistered webhook %s for %s",
