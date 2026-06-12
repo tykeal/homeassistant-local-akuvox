@@ -115,7 +115,7 @@ def test_create_device_request_delay_from_data_fallback() -> None:
 
 def test_options_schema_rejects_request_delay_above_max() -> None:
     """Test options schema rejects request_delay > 5.0."""
-    from custom_components.local_akuvox.config_flow import (
+    from custom_components.local_akuvox.options_flow import (
         AkuvoxOptionsFlow,
     )
 
@@ -137,7 +137,7 @@ def test_options_schema_rejects_request_delay_above_max() -> None:
 
 def test_options_schema_rejects_request_delay_below_min() -> None:
     """Test options schema rejects request_delay < 0.0."""
-    from custom_components.local_akuvox.config_flow import (
+    from custom_components.local_akuvox.options_flow import (
         AkuvoxOptionsFlow,
     )
 
@@ -159,7 +159,7 @@ def test_options_schema_rejects_request_delay_below_min() -> None:
 
 def test_options_schema_accepts_valid_request_delay() -> None:
     """Test options schema accepts request_delay in range."""
-    from custom_components.local_akuvox.config_flow import (
+    from custom_components.local_akuvox.options_flow import (
         AkuvoxOptionsFlow,
     )
 

@@ -1119,7 +1119,7 @@ async def test_options_webhook_enable(
 
     with (
         patch(
-            "custom_components.local_akuvox.config_flow.AkuvoxDevice",
+            "custom_components.local_akuvox.options_flow.AkuvoxDevice",
         ) as mock_flow_cls,
         patch(
             "custom_components.local_akuvox._create_device",
@@ -1210,7 +1210,7 @@ async def test_options_webhook_disable(
 
     with (
         patch(
-            "custom_components.local_akuvox.config_flow.AkuvoxDevice",
+            "custom_components.local_akuvox.options_flow.AkuvoxDevice",
         ) as mock_flow_cls,
         patch(
             "custom_components.local_akuvox._create_device",
@@ -1298,7 +1298,7 @@ async def test_options_webhook_push_fails(
         await hass.async_block_till_done()
 
     with patch(
-        "custom_components.local_akuvox.config_flow.AkuvoxDevice",
+        "custom_components.local_akuvox.options_flow.AkuvoxDevice",
     ) as mock_flow_cls:
         flow_dev = mock_flow_cls.return_value
         flow_dev.set_device_config = AsyncMock(
