@@ -3,6 +3,8 @@
 
 """Lock platform for the Akuvox integration."""
 
+# aislop-ignore-file complexity/file-too-large -- service callbacks stay on entity class
+
 from __future__ import annotations
 
 import datetime as dt
