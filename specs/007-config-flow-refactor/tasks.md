@@ -33,7 +33,7 @@ verification of each story's acceptance criteria post-refactor.
 
 **Purpose**: Create the new module file with proper headers and imports
 
-- [ ] T001 Create `custom_components/local_akuvox/options_flow.py` with SPDX
+- [x] T001 Create `custom_components/local_akuvox/options_flow.py` with SPDX
   header, module docstring, and import block per data-model.md import map
 
 ---
@@ -46,23 +46,23 @@ be complete before any verification can proceed
 **⚠️ CRITICAL**: No user story verification can succeed until this phase is
 complete
 
-- [ ] T002 Copy `AkuvoxOptionsFlow` class (lines 398–622) and `_build_schema`
+- [x] T002 Copy `AkuvoxOptionsFlow` class (lines 398–622) and `_build_schema`
   staticmethod from `custom_components/local_akuvox/config_flow.py` into
   `custom_components/local_akuvox/options_flow.py`
-- [ ] T003 Remove `AkuvoxOptionsFlow` class (lines 398–622) from
+- [x] T003 Remove `AkuvoxOptionsFlow` class (lines 398–622) from
   `custom_components/local_akuvox/config_flow.py`
-- [ ] T004 Remove `OptionsFlow` from the `homeassistant.config_entries` import
+- [x] T004 Remove `OptionsFlow` from the `homeassistant.config_entries` import
   in `custom_components/local_akuvox/config_flow.py`
-- [ ] T005 Remove now-unused imports from `config_flow.py` that are exclusively
+- [x] T005 Remove now-unused imports from `config_flow.py` that are exclusively
   used by the options flow class (e.g., `OptionsFlow` from
   `homeassistant.config_entries`). Note: `secrets` MUST remain — it is used by
   ConfigFlow at line 302.
-- [ ] T006 Add `from .options_flow import AkuvoxOptionsFlow` to
+- [x] T006 Add `from .options_flow import AkuvoxOptionsFlow` to
   `custom_components/local_akuvox/config_flow.py`
-- [ ] T006a Add `custom_components.local_akuvox.options_flow` to the mypy module
+- [x] T006a Add `custom_components.local_akuvox.options_flow` to the mypy module
   override in `pyproject.toml` to match the existing `config_flow` override.
   Verify with `uv run mypy custom_components/`.
-- [ ] T007 Verify no circular import by running `uv run python -c "from
+- [x] T007 Verify no circular import by running `uv run python -c "from
   custom_components.local_akuvox.config_flow import AkuvoxConfigFlow"` from repo
   root
 
@@ -81,10 +81,10 @@ classes, no circular imports
 
 ### Implementation for User Story 1
 
-- [ ] T008 [US1] Verify `AkuvoxConfigFlow.async_get_options_flow` in
+- [x] T008 [US1] Verify `AkuvoxConfigFlow.async_get_options_flow` in
   `custom_components/local_akuvox/config_flow.py` correctly references imported
   `AkuvoxOptionsFlow`
-- [ ] T009 [US1] Run initial setup flow tests: `uv run pytest
+- [x] T009 [US1] Run initial setup flow tests: `uv run pytest
   tests/test_config_flow.py -k "not options" -v` — all must pass without any
   test file changes
 
@@ -104,15 +104,15 @@ all tests pass after patch path updates
 
 ### Implementation for User Story 2
 
-- [ ] T011 [P] [US2] Update patch targets in `tests/test_config_flow.py` options
+- [x] T011 [P] [US2] Update patch targets in `tests/test_config_flow.py` options
   webhook tests (lines 1077–1327): change
   `custom_components.local_akuvox.config_flow.AkuvoxDevice` to
   `custom_components.local_akuvox.options_flow.AkuvoxDevice` (3 occurrences)
-- [ ] T012 [P] [US2] Update imports in `tests/test_create_device.py`: change
+- [x] T012 [P] [US2] Update imports in `tests/test_create_device.py`: change
   `from custom_components.local_akuvox.config_flow import AkuvoxOptionsFlow` to
   `from custom_components.local_akuvox.options_flow import AkuvoxOptionsFlow` (3
   occurrences)
-- [ ] T013 [US2] Run options flow tests: `uv run pytest
+- [x] T013 [US2] Run options flow tests: `uv run pytest
   tests/test_config_flow.py -k "options" -v` and `uv run pytest
   tests/test_create_device.py -v` — both must pass
 
@@ -131,13 +131,13 @@ module is focused
 
 ### Implementation for User Story 3
 
-- [ ] T014 [P] [US3] Verify `custom_components/local_akuvox/config_flow.py`
+- [x] T014 [P] [US3] Verify `custom_components/local_akuvox/config_flow.py`
   contains only `AkuvoxConfigFlow` class and is under 400 lines: `wc -l
   custom_components/local_akuvox/config_flow.py`
-- [ ] T015 [P] [US3] Verify `custom_components/local_akuvox/options_flow.py`
+- [x] T015 [P] [US3] Verify `custom_components/local_akuvox/options_flow.py`
   contains only `AkuvoxOptionsFlow` class and is under 400 lines: `wc -l
   custom_components/local_akuvox/options_flow.py`
-- [ ] T016 [US3] Verify SPDX header, type annotations, and docstrings are
+- [x] T016 [US3] Verify SPDX header, type annotations, and docstrings are
   present on `custom_components/local_akuvox/options_flow.py` per project
   constitution
 
@@ -150,16 +150,16 @@ well-documented, and within size constraints
 
 **Purpose**: Final validation across all quality gates
 
-- [ ] T017 [P] Run full test suite: `uv run pytest tests/ -v` — 100% pass rate
+- [x] T017 [P] Run full test suite: `uv run pytest tests/ -v` — 100% pass rate
   (SC-001)
-- [ ] T018 [P] Run linter: `uv run ruff check custom_components/ tests/` — zero
+- [x] T018 [P] Run linter: `uv run ruff check custom_components/ tests/` — zero
   errors (SC-005)
-- [ ] T019 [P] Run type checker: `uv run mypy custom_components/` — zero errors
+- [x] T019 [P] Run type checker: `uv run mypy custom_components/` — zero errors
   (SC-005)
-- [ ] T020 Verify no new dependencies added to
+- [x] T020 Verify no new dependencies added to
   `custom_components/local_akuvox/manifest.json` (FR-009)
-- [ ] T021 Run quickstart.md verification checklist (all items green)
-- [ ] T022 Verify existing config entry loading: confirm no migration logic is
+- [x] T021 Run quickstart.md verification checklist (all items green)
+- [x] T022 Verify existing config entry loading: confirm no migration logic is
   introduced and `async_setup_entry` works unchanged with pre-existing config
   entries (covered by existing integration tests)
 
