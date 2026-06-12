@@ -106,8 +106,9 @@ validation errors and `config_validation` helpers used by schema coercion).
 - Cloud user: If `source` is non-None and not in `("Local", "")`, return `True`.
   Otherwise if `source_type` is non-None and not in `("1", "Local", "")`, return
   `True`. Otherwise return `False`.
-- Cloud schedule: `source_type` not in `("1", "")` AND not in
-  `FACTORY_SCHEDULE_IDS`
+- Cloud schedule: Return `False` when `display_id` is in
+  `FACTORY_SCHEDULE_IDS` (`"1001"`/`"1002"`). Otherwise return `True` when
+  `source_type` is not in `("1", "")`.
 - Schedule fields: Type "0" requires week + date_start + date_end; Type "1"
   requires week; Type "2" has no extra requirements
 
