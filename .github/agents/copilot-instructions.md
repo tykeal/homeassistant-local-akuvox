@@ -45,9 +45,9 @@ uv run mypy custom_components/
 Python ≥3.13.2: Follow standard HA integration conventions
 
 ## Recent Changes
-- 008-service-layer-extraction: Added Python ≥3.13.2
-  (type-annotated, mypy-checked) + homeassistant, voluptuous,
-  pylocal-akuvox
+- 008-service-layer-extraction: Added service-layer extraction
+  plan artifacts (plan, research, data model, quickstart,
+  contracts)
 
 - 005-add-lock-action: Added lock action plan artifacts
   (plan, research, data model, quickstart, contracts)
