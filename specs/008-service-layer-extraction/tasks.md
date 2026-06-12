@@ -36,11 +36,11 @@ ______________________________________________________________________
 
 **Purpose**: Verify baseline and prepare for extraction
 
-- [ ] T001 Verify all tests pass on current branch by running
+- [x] T001 Verify all tests pass on current branch by running
   `uv run pytest tests/ -v`
-- [ ] T002 Verify lint passes by running
+- [x] T002 Verify lint passes by running
   `uv run ruff check custom_components/local_akuvox/`
-- [ ] T003 [P] Verify type checking passes by running
+- [x] T003 [P] Verify type checking passes by running
   `uv run mypy custom_components/local_akuvox/`
 
 ______________________________________________________________________
@@ -55,7 +55,7 @@ begin.
 `const.py` in the dependency graph — both `services.py` and `lock.py` will
 import from it, and it must not import either of them.
 
-- [ ] T004 Create `custom_components/local_akuvox/validation.py` with SPDX
+- [x] T004 Create `custom_components/local_akuvox/validation.py` with SPDX
   header (`# SPDX-FileCopyrightText: 2026 Andrew Grimberg
   <tykeal@bardicgrove.org>` plus the Apache-2.0 SPDX license line), module
   docstring,
@@ -65,55 +65,55 @@ import from it, and it must not import either of them.
   `from homeassistant.helpers import config_validation as cv`,
   `from .const import DAY_NAME_TO_DIGIT`, plus
   `if TYPE_CHECKING: from pylocal_akuvox import AccessSchedule, User`
-- [ ] T005 Add constants `REQUIRED_SCHEDULE_FIELDS` (dict mapping schedule type
+- [x] T005 Add constants `REQUIRED_SCHEDULE_FIELDS` (dict mapping schedule type
   to required field tuples: `"0"` → `("week", "date_start", "date_end")`, `"1"`
   → `("week",)`, `"2"` → `()`) and `FACTORY_SCHEDULE_IDS`
   (`frozenset({"1001", "1002"})`) to
   `custom_components/local_akuvox/validation.py`; these are the moved
   module-level homes for `lock.py`'s `_REQUIRED_FIELDS` and
   `_FACTORY_SCHEDULE_IDS`
-- [ ] T006 Copy `_csv_to_list` logic from
+- [x] T006 Copy `_csv_to_list` logic from
   `custom_components/local_akuvox/__init__.py` (line 67) into
   `custom_components/local_akuvox/validation.py` as
   `csv_to_list(value: Any) -> list[str]` — add the new function without removing
   the original yet, drop the underscore prefix, and preserve exact logic
-- [ ] T007 Copy `AkuvoxLockEntity._validate_pin` from
+- [x] T007 Copy `AkuvoxLockEntity._validate_pin` from
   `custom_components/local_akuvox/lock.py` (line 948) into
   `custom_components/local_akuvox/validation.py` as
   `validate_pin(pin: str | None) -> None` — convert from instance method to
   module-level function, remove `self`, preserve `ServiceValidationError`
   behavior, and leave the original method in place until T018/T020
-- [ ] T008 Copy `AkuvoxLockEntity._is_cloud_provisioned_user` from
+- [x] T008 Copy `AkuvoxLockEntity._is_cloud_provisioned_user` from
   `custom_components/local_akuvox/lock.py` (line 905) into
   `custom_components/local_akuvox/validation.py` as
   `is_cloud_provisioned_user(user: User) -> bool` — convert from `@staticmethod`
   to module-level function and leave the original method in place until
   T018/T020
-- [ ] T009 Copy `AkuvoxLockEntity._is_cloud_provisioned_schedule` from
+- [x] T009 Copy `AkuvoxLockEntity._is_cloud_provisioned_schedule` from
   `custom_components/local_akuvox/lock.py` (line 927) into
   `custom_components/local_akuvox/validation.py` as
   `is_cloud_provisioned_schedule(schedule: AccessSchedule) -> bool` — convert
   from `@staticmethod` to module-level function, replace
   `AkuvoxLockEntity._FACTORY_SCHEDULE_IDS` with `FACTORY_SCHEDULE_IDS` in
   `validation.py`, and leave the original method in place until T018/T020
-- [ ] T010 Copy `AkuvoxLockEntity._check_required_schedule_fields` from
+- [x] T010 Copy `AkuvoxLockEntity._check_required_schedule_fields` from
   `custom_components/local_akuvox/lock.py` (line 646) into
   `custom_components/local_akuvox/validation.py` as
   `check_required_schedule_fields(schedule_type: str, **kwargs: Any) -> None` —
   replace `_REQUIRED_FIELDS` with `REQUIRED_SCHEDULE_FIELDS` and leave the
   original method in place until T018/T020
-- [ ] T011 Copy `AkuvoxLockEntity` static methods from
+- [x] T011 Copy `AkuvoxLockEntity` static methods from
   `custom_components/local_akuvox/lock.py` (lines 607, 621, 634) into
   `custom_components/local_akuvox/validation.py` as
   `convert_week(days: list[str]) -> str`, `convert_date(value: dt.date) -> str`,
   and `convert_time(value: dt.time) -> str` — leave the originals in place until
   T018/T020
-- [ ] T012 Copy `AkuvoxLockEntity._parse_schedule_relay_pairs` from
+- [x] T012 Copy `AkuvoxLockEntity._parse_schedule_relay_pairs` from
   `custom_components/local_akuvox/lock.py` (line 1080) into
   `custom_components/local_akuvox/validation.py` as
   `parse_schedule_relay_pairs(raw: str, *, allow_empty: bool = False) -> list[str]`
   — leave the original method in place until T018/T020
-- [ ] T013 Copy `AkuvoxLockEntity._build_schedule_relay` logic from
+- [x] T013 Copy `AkuvoxLockEntity._build_schedule_relay` logic from
   `custom_components/local_akuvox/lock.py` (line 1058) into
   `custom_components/local_akuvox/validation.py` as
   `build_schedule_relay(display_ids: list[str], relay_number: int) -> str` — add
@@ -138,8 +138,8 @@ can be imported without errors before Phase 3 begins destructive changes.
 
 #### T013A Acceptance criteria
 
-- [ ] `uv run pytest tests/ -v` exits 0 with all tests passing
-- [ ] No import errors related to `validation.py`
+- [x] `uv run pytest tests/ -v` exits 0 with all tests passing
+- [x] No import errors related to `validation.py`
 
 **Checkpoint**: `validation.py` is complete as a standalone low-level helper
 module (~200 lines). Can be verified with
@@ -159,30 +159,30 @@ identical behavior.
 
 ### Implementation for User Story 1
 
-- [ ] T014 [US1] Create `custom_components/local_akuvox/services.py` with SPDX
+- [x] T014 [US1] Create `custom_components/local_akuvox/services.py` with SPDX
   header, module docstring, and imports (voluptuous,
   homeassistant.const.Platform,
   homeassistant.core.HomeAssistant/SupportsResponse,
   homeassistant.helpers.config_validation/service, `.const` service name
   constants, `.validation.csv_to_list`)
-- [ ] T015 [US1] Implement
+- [x] T015 [US1] Implement
   `async_register_services(hass: HomeAssistant) -> None` in
   `custom_components/local_akuvox/services.py` — move all 18
   `service.async_register_platform_entity_service()` calls from
   `custom_components/local_akuvox/__init__.py` (lines 101–357) with their inline
   voluptuous schema definitions, preserving exact schema logic and
   `supports_response=SupportsResponse.ONLY` for list services
-- [ ] T016 [US1] Update `custom_components/local_akuvox/__init__.py` — remove
+- [x] T016 [US1] Update `custom_components/local_akuvox/__init__.py` — remove
   `_csv_to_list` function (line 67), remove all 18
   `service.async_register_platform_entity_service()` calls and their schema
   imports, add `from .services import async_register_services`, change
   `async_setup()` to call `await async_register_services(hass)` then
   `return True`
-- [ ] T017 [US1] Remove unused imports from
+- [x] T017 [US1] Remove unused imports from
   `custom_components/local_akuvox/__init__.py` — remove `voluptuous`, `cv`,
   `service`, `SupportsResponse`, `Platform`, and all `SERVICE_*` constants that
   are no longer used directly
-- [ ] T018 [US1] Update `custom_components/local_akuvox/lock.py` — remove
+- [x] T018 [US1] Update `custom_components/local_akuvox/lock.py` — remove
   extracted methods (`_validate_pin`, `_is_cloud_provisioned_user`,
   `_is_cloud_provisioned_schedule`, `_check_required_schedule_fields`,
   `_convert_week`, `_convert_date`, `_convert_time`,
@@ -191,9 +191,9 @@ identical behavior.
   `REQUIRED_SCHEDULE_FIELDS`, and remove the `_FACTORY_SCHEDULE_IDS` class
   variable (`ClassVar`, defined near line 924) after it is moved to
   `validation.py` as `FACTORY_SCHEDULE_IDS`
-- [ ] T019 [US1] Add imports to `custom_components/local_akuvox/lock.py` — add
+- [x] T019 [US1] Add imports to `custom_components/local_akuvox/lock.py` — add
   `from .validation import (build_schedule_relay, check_required_schedule_fields, convert_date, convert_time, convert_week, is_cloud_provisioned_schedule, is_cloud_provisioned_user, parse_schedule_relay_pairs, validate_pin)`
-- [ ] T020 [US1] Update all service handler method bodies in `AkuvoxLockEntity`
+- [x] T020 [US1] Update all service handler method bodies in `AkuvoxLockEntity`
   in `custom_components/local_akuvox/lock.py` — replace
   `self._validate_pin(...)` with `validate_pin(...)`,
   `self._is_cloud_provisioned_user(...)` with `is_cloud_provisioned_user(...)`,
@@ -206,11 +206,11 @@ identical behavior.
   `self._parse_schedule_relay_pairs(...)` with
   `parse_schedule_relay_pairs(...)`, `self._build_schedule_relay(ids)` with
   `build_schedule_relay(ids, self._relay_number)`
-- [ ] T021 [US1] Remove unused imports from
+- [x] T021 [US1] Remove unused imports from
   `custom_components/local_akuvox/lock.py` that were only needed by extracted
   methods (e.g., `ClassVar` if no longer used, redundant
   `ServiceValidationError` if validation.py now raises it)
-- [ ] T022 [US1] Verify no circular imports by running
+- [x] T022 [US1] Verify no circular imports by running
   `python -c "from custom_components.local_akuvox import services; from custom_components.local_akuvox import validation; from custom_components.local_akuvox import lock"`
   from repository root
 
@@ -229,12 +229,12 @@ no test logic modifications.
 
 ### Implementation for User Story 4
 
-- [ ] T023 [US4] Run `uv run pytest tests/ -v` and identify any import failures
+- [x] T023 [US4] Run `uv run pytest tests/ -v` and identify any import failures
   caused by moved code
-- [ ] T024 [US4] Update imports in `tests/test_services.py` if any validation
+- [x] T024 [US4] Update imports in `tests/test_services.py` if any validation
   helpers were previously imported from `lock`, and verify direct helper
   references that move to `validation.py` are tracked separately in T025A
-- [ ] T025 [US4] Update import paths in `tests/test_init.py` if `_csv_to_list`
+- [x] T025 [US4] Update import paths in `tests/test_init.py` if `_csv_to_list`
   was tested directly (verify — research indicates it is tested indirectly via
   service calls only)
 
@@ -268,22 +268,22 @@ assertions around the existing cloud-provisioning checks (currently near lines
 
 #### T025A Acceptance criteria
 
-- [ ] No references to `AkuvoxLockEntity._is_cloud_provisioned_user` remain in
+- [x] No references to `AkuvoxLockEntity._is_cloud_provisioned_user` remain in
   tests
 
-- [ ] No references to `AkuvoxLockEntity._is_cloud_provisioned_schedule` remain
+- [x] No references to `AkuvoxLockEntity._is_cloud_provisioned_schedule` remain
   in tests
 
-- [ ] Tests import from `custom_components.local_akuvox.validation` instead
+- [x] Tests import from `custom_components.local_akuvox.validation` instead
 
-- [ ] All tests still pass
+- [x] All tests still pass
 
-- [ ] T026 [US4] Update any mock target paths in test files if mock patches
+- [x] T026 [US4] Update any mock target paths in test files if mock patches
   reference moved function locations (e.g.,
   `patch("custom_components.local_akuvox.lock._validate_pin")` →
   `patch("custom_components.local_akuvox.validation.validate_pin")`)
 
-- [ ] T027 [US4] Run `uv run pytest tests/ -v` and confirm all tests pass with
+- [x] T027 [US4] Run `uv run pytest tests/ -v` and confirm all tests pass with
   zero test logic changes
 
 **Checkpoint**: Full test suite passes. `git diff tests/` shows only
@@ -301,22 +301,22 @@ responsibility per module.
 
 ### Implementation for User Story 2
 
-- [ ] T028 [US2] Verify `custom_components/local_akuvox/__init__.py` contains
+- [x] T028 [US2] Verify `custom_components/local_akuvox/__init__.py` contains
   ONLY lifecycle orchestration: `CONFIG_SCHEMA`, `async_setup`,
   `async_setup_entry`, `async_unload_entry`, `async_remove_entry`,
   `_get_config_value`, `_create_device`, `_async_update_listener` — no service
   schemas, no validation helpers
-- [ ] T029 [US2] Verify `custom_components/local_akuvox/services.py` contains
+- [x] T029 [US2] Verify `custom_components/local_akuvox/services.py` contains
   ONLY schema definitions and registration: `async_register_services` with all
   18 service registrations — no validation logic, no entity code
-- [ ] T030 [US2] Verify `custom_components/local_akuvox/validation.py` contains
+- [x] T030 [US2] Verify `custom_components/local_akuvox/validation.py` contains
   ONLY pure validation/conversion functions: `csv_to_list`, `validate_pin`,
   `is_cloud_provisioned_user`, `is_cloud_provisioned_schedule`,
   `check_required_schedule_fields`, `convert_week`, `convert_date`,
   `convert_time`, `parse_schedule_relay_pairs`, `build_schedule_relay`, and
   constants `REQUIRED_SCHEDULE_FIELDS`, `FACTORY_SCHEDULE_IDS` — no HA framework
   lifecycle code
-- [ ] T031 [US2] Verify `custom_components/local_akuvox/lock.py` contains ONLY
+- [x] T031 [US2] Verify `custom_components/local_akuvox/lock.py` contains ONLY
   entity/platform code: relay helpers, `async_setup_entry`, `AkuvoxLockEntity`
   class with lifecycle, lock/unlock, and thin service handler methods that
   delegate to validation.py — no schema definitions, no service registration
@@ -339,17 +339,17 @@ plus HA-dispatch-bound service handlers.
 
 ### Implementation for User Story 3
 
-- [ ] T032 [US3] Run `wc -l custom_components/local_akuvox/*.py | sort -n` and
+- [x] T032 [US3] Run `wc -l custom_components/local_akuvox/*.py | sort -n` and
   verify `__init__.py`, `services.py`, and `validation.py` are approximately 500
   lines or less; accept `lock.py` as the documented exception only if it retains
   just entity lifecycle + HA-dispatch-bound service handlers
-- [ ] T033 [US3] Verify `custom_components/local_akuvox/__init__.py` is
+- [x] T033 [US3] Verify `custom_components/local_akuvox/__init__.py` is
   approximately 100–150 lines (70%+ reduction from ~550)
-- [ ] T034 [US3] Verify `custom_components/local_akuvox/lock.py` no longer owns
+- [x] T034 [US3] Verify `custom_components/local_akuvox/lock.py` no longer owns
   the extracted validation/utility helpers; the remaining large body is entity
   lifecycle + service handlers that must stay on the entity for Home Assistant
   dispatch
-- [ ] T035 [US3] If `services.py`, `validation.py`, or `__init__.py` exceed
+- [x] T035 [US3] If `services.py`, `validation.py`, or `__init__.py` exceed
   approximately 500 lines, identify further extraction opportunities and adjust;
   do not split `lock.py` service handlers solely to chase the line-count
   guideline
@@ -363,18 +363,18 @@ ______________________________________________________________________
 
 **Purpose**: Final verification and compliance checks
 
-- [ ] T036 [P] Run `uv run ruff check custom_components/local_akuvox/` and fix
+- [x] T036 [P] Run `uv run ruff check custom_components/local_akuvox/` and fix
   any lint errors in new/modified files
-- [ ] T037 [P] Run `uv run mypy custom_components/local_akuvox/` and fix any
+- [x] T037 [P] Run `uv run mypy custom_components/local_akuvox/` and fix any
   type errors in new/modified files
-- [ ] T038 [P] Run `uv run reuse lint` to verify SPDX headers on `validation.py`
+- [x] T038 [P] Run `uv run reuse lint` to verify SPDX headers on `validation.py`
   and `services.py`
-- [ ] T039 Verify service count:
+- [x] T039 Verify service count:
   `grep -c "async_register_platform_entity_service" custom_components/local_akuvox/services.py`
   should output `18`
-- [ ] T040 Run full test suite one final time: `uv run pytest tests/ -v` — all
+- [x] T040 Run full test suite one final time: `uv run pytest tests/ -v` — all
   tests pass
-- [ ] T041 Run quickstart.md validation commands from
+- [x] T041 Run quickstart.md validation commands from
   `specs/008-service-layer-extraction/quickstart.md`
 
 ______________________________________________________________________
