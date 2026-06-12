@@ -32,7 +32,10 @@ from custom_components.local_akuvox.const import (
     EVENT_SCHEDULE_CHANGED,
     EVENT_USER_CHANGED,
 )
-from custom_components.local_akuvox.lock import AkuvoxLockEntity
+from custom_components.local_akuvox.validation import (
+    is_cloud_provisioned_schedule,
+    is_cloud_provisioned_user,
+)
 from tests.conftest import setup_entry
 
 ENTITY_ID = "lock.testlab_intercom_front_gate"
@@ -2831,7 +2834,7 @@ def test_is_cloud_provisioned_user(
     source_type: str | None,
     expected: bool,
 ) -> None:
-    """Test _is_cloud_provisioned_user with various firmware variants."""
+    """Test is_cloud_provisioned_user with various firmware variants."""
     user = User(
         id="1",
         name="Test",
@@ -2845,7 +2848,7 @@ def test_is_cloud_provisioned_user(
         source=source,
         source_type=source_type,
     )
-    assert AkuvoxLockEntity._is_cloud_provisioned_user(user) is expected
+    assert is_cloud_provisioned_user(user) is expected
 
 
 @pytest.mark.parametrize(
@@ -2871,7 +2874,7 @@ def test_is_cloud_provisioned_schedule(
     source_type: str | None,
     expected: bool,
 ) -> None:
-    """Test _is_cloud_provisioned_schedule with various source_type codes."""
+    """Test is_cloud_provisioned_schedule with various source_type codes."""
     schedule = AccessSchedule(
         id="1",
         schedule_type="1",
@@ -2893,7 +2896,7 @@ def test_is_cloud_provisioned_schedule(
         fri=None,
         sat=None,
     )
-    assert AkuvoxLockEntity._is_cloud_provisioned_schedule(schedule) is expected
+    assert is_cloud_provisioned_schedule(schedule) is expected
 
 
 @pytest.mark.parametrize(
@@ -2942,7 +2945,7 @@ def test_is_cloud_provisioned_schedule_factory(
         fri=None,
         sat=None,
     )
-    assert AkuvoxLockEntity._is_cloud_provisioned_schedule(schedule) is expected
+    assert is_cloud_provisioned_schedule(schedule) is expected
 
 
 async def test_check_cloud_schedules_allows_factory_sdmc(
