@@ -80,8 +80,8 @@ after extraction.
 ### validation.py
 
 **Responsibility**: Pure validation logic and format conversion utilities with
-no HA framework dependencies (except for `ServiceValidationError` for raising
-errors).
+minimal Home Assistant dependencies (`ServiceValidationError` for raised
+validation errors and `config_validation` helpers used by schema coercion).
 
 **Constants**:
 
@@ -183,11 +183,11 @@ refactor.
 
 | Module          | Current | Post-Refactor | Change                                      |
 | --------------- | ------- | ------------- | ------------------------------------------- |
-| `__init__.py`   | 549     | ~120          | -78%                                        |
-| `lock.py`       | 1734    | ~1,545        | -11%                                        |
+| `__init__.py`   | ~550    | ~120          | -78%                                        |
+| `lock.py`       | ~1,735  | ~1,545        | -11%                                        |
 | `services.py`   | —       | ~290          | new                                         |
 | `validation.py` | —       | ~200          | new                                         |
-| **Total**       | 2283    | ~1060         | -54% (deduplication of imports/boilerplate) |
+| **Total**       | ~2,285  | ~1060         | -54% (deduplication of imports/boilerplate) |
 
 Note: Total LOC decreases slightly because extracted functions shed duplicate
 imports and the `self` parameter overhead of unnecessary static methods. Actual

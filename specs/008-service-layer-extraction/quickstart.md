@@ -10,7 +10,7 @@ SPDX-License-Identifier: Apache-2.0
 ## Overview
 
 This refactor extracts the service layer from two oversized files (`__init__.py`
-at 549 lines, `lock.py` at 1734 lines) into focused modules while maintaining
+at ~550 lines, `lock.py` at ~1,735 lines) into focused modules while maintaining
 100% behavioral compatibility.
 
 ## Architecture After Refactor

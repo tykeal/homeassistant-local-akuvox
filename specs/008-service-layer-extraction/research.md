@@ -47,7 +47,7 @@ const.py (leaf - no local imports)
     ↑
 validation.py (imports only const.py)
     ↑
-services.py (imports const.py, validation.py for _csv_to_list)
+services.py (imports const.py, validation.py for csv_to_list)
     ↑
 lock.py (imports validation.py, const.py)
     ↑
@@ -56,7 +56,7 @@ __init__.py (imports services.py, const.py, coordinator.py, webhook.py)
 
 **Rationale**: This graph has no cycles. `validation.py` is a pure utility
 module with no dependencies on entity or platform code. `services.py` only needs
-`_csv_to_list` from validation (used in schema definitions) and constants.
+`csv_to_list` from validation (used in schema definitions) and constants.
 `lock.py` entity methods call validation helpers directly.
 
 **Alternatives considered**:
@@ -153,7 +153,7 @@ trivial state that can be passed as a parameter). Extracting them makes
   `async_remove_entry()`
 
 **Rationale**: This achieves the spec target of ~100-150 lines for `__init__.py`
-(currently 549 → estimated ~120 after removing 257 lines of service
+(currently ~550 → estimated ~120 after removing 257 lines of service
 registrations plus 20 lines of imports no longer needed).
 
 **Alternatives considered**:
@@ -174,7 +174,7 @@ given that Home Assistant binds entity services to methods on
 lines. The refactor removes the validation/utility helpers (~190 lines), but the
 service handler methods themselves stay on the entity class.
 
-**Rationale**: Current `lock.py` = 1734 lines. Code to extract:
+**Rationale**: Current `lock.py` = ~1,735 lines. Code to extract:
 
 - Validation helpers and associated constants (~130 lines): `_validate_pin`,
   `_is_cloud_provisioned_user`, `_is_cloud_provisioned_schedule`,

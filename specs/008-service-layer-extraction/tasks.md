@@ -343,7 +343,7 @@ plus HA-dispatch-bound service handlers.
   lines or less; accept `lock.py` as the documented exception only if it retains
   just entity lifecycle + HA-dispatch-bound service handlers
 - [ ] T033 [US3] Verify `custom_components/local_akuvox/__init__.py` is
-  approximately 100–150 lines (70%+ reduction from 549)
+  approximately 100–150 lines (70%+ reduction from ~550)
 - [ ] T034 [US3] Verify `custom_components/local_akuvox/lock.py` no longer owns
   the extracted validation/utility helpers; the remaining large body is entity
   lifecycle + service handlers that must stay on the entity for Home Assistant

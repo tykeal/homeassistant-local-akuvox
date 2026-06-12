@@ -13,7 +13,7 @@ SPDX-License-Identifier: Apache-2.0
 
 ## Summary
 
-Extract the service layer from `__init__.py` (549 lines) and `lock.py` (1734
+Extract the service layer from `__init__.py` (~550 lines) and `lock.py` (~1,735
 lines) into focused, single-responsibility modules. Service schemas and
 registration move to `services.py`; validation helpers, cloud-provisioning
 checks, and utility functions move to `validation.py`. The result is a thin
@@ -26,13 +26,13 @@ continue working identically.
 
 **Language/Version**: Python 3.x (type-annotated, mypy-checked) **Primary
 Dependencies**: Home Assistant Core, voluptuous, pylocal_akuvox **Storage**: N/A
-(device API via pylocal_akuvox) **Testing**: pytest (12,027 lines across 11 test
+(device API via pylocal_akuvox) **Testing**: pytest (~12,000 lines across 11 test
 files) **Target Platform**: Home Assistant (custom integration) **Project
 Type**: Home Assistant custom component (integration) **Performance Goals**: N/A
 (pure refactor, no performance-sensitive changes) **Constraints**: No behavior
 changes; all 18 services must remain identical; clear module boundaries;
 validation helpers fully extracted from `lock.py` **Scale/Scope**: 4,138 LOC in
-integration, 12,027 LOC in tests; 18 registered services
+integration, ~12,000 LOC in tests; 18 registered services
 
 ## Constitution Check
 

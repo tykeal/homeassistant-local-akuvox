@@ -7,7 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 
 **Feature Branch**: `008-service-layer-extraction` **Created**: 2026-06-12
 **Status**: Draft **Input**: User description: "Extract the service layer from
-`__init__.py` (549 lines) and `lock.py` (1734 lines) into focused modules. This
+`__init__.py` (~550 lines) and `lock.py` (~1,735 lines) into focused modules. This
 is a pure refactor — no behavior changes."
 
 ## User Scenarios & Testing *(mandatory)*
@@ -97,11 +97,11 @@ code plus HA-dispatch-bound service handlers.
    Python modules in `custom_components/local_akuvox/`, **Then** no single file
    exceeds approximately 500 lines except `lock.py`, which is the documented
    architectural exception
-1. **Given** `lock.py` currently has 1,734 lines, **When** the refactor is
+1. **Given** `lock.py` currently has ~1,735 lines, **When** the refactor is
    complete, **Then** `lock.py` retains only lock entity/platform code plus
    HA-dispatch-bound service handlers, with validation/utility helpers extracted
    to `validation.py`
-1. **Given** `__init__.py` currently has 549 lines, **When** the refactor is
+1. **Given** `__init__.py` currently has ~550 lines, **When** the refactor is
    complete, **Then** `__init__.py` is reduced to approximately 100–150 lines
 
 ______________________________________________________________________
@@ -213,7 +213,7 @@ ______________________________________________________________________
   behavior for both valid and invalid inputs
 - **SC-003**: No Python file in `custom_components/local_akuvox/` exceeds 500
   lines, except `lock.py` which retains entity-bound service handlers
-- **SC-004**: `__init__.py` is reduced from 549 lines to approximately 100–150
+- **SC-004**: `__init__.py` is reduced from ~550 lines to approximately 100–150
   lines (70%+ reduction)
 - **SC-005**: `lock.py` is reduced by extracting all validation/utility helpers
   to `validation.py` (~190 lines removed); service handlers remain on the entity
