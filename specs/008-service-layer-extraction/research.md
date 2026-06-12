@@ -49,15 +49,17 @@ validation.py (imports only const.py)
     ↑
 services.py (imports const.py, validation.py for csv_to_list)
     ↑
-lock.py (imports validation.py, const.py)
-    ↑
 __init__.py (imports services.py, const.py, coordinator.py, webhook.py)
+
+lock.py (loaded separately by HA platform forwarding; imports const.py and
+validation.py)
 ```
 
 **Rationale**: This graph has no cycles. `validation.py` is a pure utility
 module with no dependencies on entity or platform code. `services.py` only needs
 `csv_to_list` from validation (used in schema definitions) and constants.
-`lock.py` entity methods call validation helpers directly.
+`lock.py` is a separate platform branch whose entity methods call validation
+helpers directly.
 
 **Alternatives considered**:
 

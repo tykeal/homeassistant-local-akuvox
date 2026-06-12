@@ -51,8 +51,9 @@ ______________________________________________________________________
 depend on. This MUST be complete before services.py or lock.py refactoring can
 begin.
 
-**⚠️ CRITICAL**: `validation.py` is the leaf module in the dependency graph —
-both `services.py` and `lock.py` will import from it.
+**⚠️ CRITICAL**: `validation.py` is the lowest-level helper module above
+`const.py` in the dependency graph — both `services.py` and `lock.py` will
+import from it, and it must not import either of them.
 
 - [ ] T004 Create `custom_components/local_akuvox/validation.py` with SPDX
   header (`# SPDX-FileCopyrightText: 2026 Andrew Grimberg
@@ -140,8 +141,8 @@ can be imported without errors before Phase 3 begins destructive changes.
 - [ ] `uv run pytest tests/ -v` exits 0 with all tests passing
 - [ ] No import errors related to `validation.py`
 
-**Checkpoint**: `validation.py` is complete as a standalone leaf module (~200
-lines). Can be verified with
+**Checkpoint**: `validation.py` is complete as a standalone low-level helper
+module (~200 lines). Can be verified with
 `python -c "from custom_components.local_akuvox.validation import csv_to_list, validate_pin"`
 (no import errors).
 
@@ -321,8 +322,8 @@ responsibility per module.
   delegate to validation.py — no schema definitions, no service registration
 
 **Checkpoint**: Each module has single responsibility. Dependency direction is
-strictly `const → validation → services → __init__` and
-`const/validation → lock`.
+strictly `const ← validation ← services ← __init__` and
+`const/validation ← lock`.
 
 ______________________________________________________________________
 
@@ -462,7 +463,8 @@ ______________________________________________________________________
 
 ### Incremental Delivery
 
-1. Complete Setup + Foundational → validation.py exists as leaf module
+1. Complete Setup + Foundational → validation.py exists as the low-level helper
+   module above `const.py`
 1. Complete User Story 1 → Core extraction done, services work ✓
 1. Complete User Story 4 → Tests confirmed passing with path updates ✓
 1. Complete User Story 2 → Module boundaries verified clean ✓
