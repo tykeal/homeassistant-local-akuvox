@@ -9,7 +9,8 @@ import logging
 import secrets
 from typing import Any
 
-import voluptuous as vol
+# aislop-ignore-next-line ai-slop/hallucinated-import -- provided by homeassistant
+import voluptuous as vol  # provided by homeassistant
 from homeassistant.config_entries import ConfigEntry, ConfigFlow, OptionsFlow
 from homeassistant.core import callback
 from pylocal_akuvox import (

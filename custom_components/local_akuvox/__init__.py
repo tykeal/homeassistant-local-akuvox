@@ -8,7 +8,8 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-import voluptuous as vol
+# aislop-ignore-next-line ai-slop/hallucinated-import -- provided by homeassistant
+import voluptuous as vol  # provided by homeassistant
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, SupportsResponse
