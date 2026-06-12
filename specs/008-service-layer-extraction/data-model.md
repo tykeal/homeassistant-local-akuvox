@@ -20,59 +20,53 @@ after extraction.
                     │   const.py  │  (leaf module — no local imports)
                     └──────┬──────┘
                            │
-              ┌────────────┼────────────┐
-              │            │            │
-              ▼            ▼            ▼
-     ┌──────────────┐  ┌──────────┐  ┌───────────────┐
-     │ validation.py│  │webhook.py│  │coordinator.py │
-     │              │  │          │  │               │
-     │ • csv_to_list│  │          │  │               │
-     │ • validate_  │  │          │  │               │
-     │   pin        │  │          │  │               │
-     │ • is_cloud_* │  │          │  │               │
-     │ • convert_*  │  │          │  │               │
-     │ • parse/build│  │          │  │               │
-     │   schedule   │  │          │  │               │
-     └──────┬───────┘  └────┬─────┘  └───────┬───────┘
-            │               │                 │
-            ▼               │                 │
-     ┌──────────────┐       │                 │
-     │  services.py │       │                 │
-     │              │       │                 │
-     │ • schemas    │       │                 │
-     │ • async_     │       │                 │
-     │   register_  │       │                 │
-     │   services() │       │                 │
-     └──────┬───────┘       │                 │
-            │               │                 │
-            ▼               ▼                 ▼
-     ┌─────────────────────────────────────────────┐
-     │                 __init__.py                   │
-     │                                              │
-     │ • CONFIG_SCHEMA                              │
-     │ • async_setup() → calls register_services()  │
-     │ • async_setup_entry()                        │
-     │ • async_unload_entry()                       │
-     │ • async_remove_entry()                       │
-     └──────────────────────────────────────────────┘
+                           ▼
+                    ┌──────────────┐
+                    │ validation.py│
+                    │              │
+                    │ • csv_to_list│
+                    │ • validate_* │
+                    │ • is_cloud_* │
+                    │ • convert_*  │
+                    │ • parse/build│
+                    │   schedule   │
+                    └──────┬───────┘
+                           │
+                           ▼
+                    ┌──────────────┐
+                    │  services.py │
+                    │              │
+                    │ • schemas    │
+                    │ • async_     │
+                    │   register_  │
+                    │   services() │
+                    └──────┬───────┘
                            │
                            ▼
      ┌─────────────────────────────────────────────┐
-     │                   lock.py                    │
-     │                                              │
-     │ • Relay parsing functions                    │
-     │ • async_setup_entry (platform)               │
-     │ • AkuvoxLockEntity                           │
-     │   - Entity lifecycle                         │
-     │   - lock/unlock actions                      │
-     │   - Service handler methods (thin delegates) │
+     │                 __init__.py                 │
+     │                                             │
+     │ • CONFIG_SCHEMA                             │
+     │ • async_setup() → calls register_services() │
+     │ • async_setup_entry()                       │
+     │ • async_unload_entry()                      │
+     │ • async_remove_entry()                      │
+     │ • imports coordinator.py and webhook.py     │
      └─────────────────────────────────────────────┘
-            │
-            │ imports helpers from
-            ▼
-     ┌──────────────┐
-     │ validation.py│
-     └──────────────┘
+
+     ┌─────────────────────────────────────────────┐
+     │                   lock.py                   │
+     │                                             │
+     │ • async_setup_entry (platform)              │
+     │ • AkuvoxLockEntity                          │
+     │   - Entity lifecycle                        │
+     │   - lock/unlock actions                     │
+     │   - Service handler methods                 │
+     │ • imports const.py + validation.py helpers  │
+     └─────────────────────────────────────────────┘
+
+     Home Assistant loads `lock.py` as a forwarded platform module.
+     `__init__.py` does not import `lock.py` directly.
 ```
 
 ## Module Specifications
@@ -187,12 +181,13 @@ refactor.
 | `lock.py`       | ~1,735  | ~1,545        | -11%                                        |
 | `services.py`   | —       | ~290          | new                                         |
 | `validation.py` | —       | ~200          | new                                         |
-| **Total**       | ~2,285  | ~1060         | -54% (deduplication of imports/boilerplate) |
+| **Total**       | ~2,285  | ~2,155        | -6% (mostly import/docstring consolidation) |
 
 Note: Total LOC decreases slightly because extracted functions shed duplicate
-imports and the `self` parameter overhead of unnecessary static methods. Actual
-total will be close to original (code is moved, not deleted). `lock.py` remains
-relatively large because Home Assistant platform entity service handlers are
-entity-bound and stay on `AkuvoxLockEntity`.
+imports, repeated helper docstrings, and the `self` parameter overhead of
+unnecessary static methods. The overall total should remain close to current
+because code is moved, not deleted. `lock.py` remains relatively large because
+Home Assistant platform entity service handlers are entity-bound and stay on
+`AkuvoxLockEntity`.
 
 <!-- markdownlint-enable MD013 -->

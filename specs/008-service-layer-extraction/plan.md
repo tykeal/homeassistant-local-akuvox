@@ -24,7 +24,7 @@ continue working identically.
 
 ## Technical Context
 
-**Language/Version**: Python 3.x (type-annotated, mypy-checked) **Primary
+**Language/Version**: Python >=3.13.2 (type-annotated, mypy-checked) **Primary
 Dependencies**: Home Assistant Core, voluptuous, pylocal_akuvox **Storage**: N/A
 (device API via pylocal_akuvox) **Testing**: pytest (~12,000 lines across 11 test
 files) **Target Platform**: Home Assistant (custom integration) **Project
