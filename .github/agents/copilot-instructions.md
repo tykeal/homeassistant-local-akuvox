@@ -10,7 +10,7 @@ SPDX-License-Identifier: Apache-2.0
 
 # local-akuvox Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-03-05
+Auto-generated from all feature plans. Last updated: 2026-06-12
 
 ## Active Technologies
 - Python ≥3.13.2 with pylocal-akuvox (001-akuvox-lock-integration)
@@ -21,6 +21,8 @@ Auto-generated from all feature plans. Last updated: 2026-03-05
 - HA config entries with webhook_id, webhook_enabled (004-webhook-endpoint)
 - Python ≥3.13.2 + pylocal-akuvox ≥0.2.3 device communication (005-add-lock-action)
 - N/A storage, uses existing coordinator data and entity state (005-add-lock-action)
+- Python ≥3.13.2 (type-annotated, mypy-checked) + homeassistant, voluptuous, pylocal-akuvox (008-service-layer-extraction)
+- N/A (device API via pylocal-akuvox) (008-service-layer-extraction)
 
 ## Project Structure
 
@@ -43,6 +45,9 @@ uv run mypy custom_components/
 Python ≥3.13.2: Follow standard HA integration conventions
 
 ## Recent Changes
+- 008-service-layer-extraction: Added service-layer extraction
+  plan artifacts (plan, research, data model, quickstart,
+  contracts)
 
 - 005-add-lock-action: Added lock action plan artifacts
   (plan, research, data model, quickstart, contracts)
