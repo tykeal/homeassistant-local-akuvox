@@ -79,8 +79,7 @@ uv run mypy custom_components/
    actually exercises options flow code, it will silently pass with real device
    calls (caught by CI since no network available).
 
-2. **Import ordering** — `config_flow.py` must import `AkuvoxOptionsFlow` after
-   its own class definition to avoid forward-reference issues. Actually, since
-   it's a module-level import (not inside the class body), Python resolves it at
-   module load time — this is fine as long as `options_flow.py` doesn't import
-   back.
+2. **Circular import risk** — `config_flow.py` can safely import
+   `AkuvoxOptionsFlow` at module scope, but `options_flow.py` must not import
+   back from `config_flow.py`. The real failure mode is a circular import, not a
+   forward-reference issue.
