@@ -6,15 +6,10 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
 
-# aislop-ignore-next-line ai-slop/hallucinated-import -- provided by homeassistant
-import voluptuous as vol  # provided by homeassistant
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import Platform
-from homeassistant.core import HomeAssistant, SupportsResponse
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_validation as cv
-from homeassistant.helpers import service
 from homeassistant.helpers.typing import ConfigType
 from pylocal_akuvox import AkuvoxDevice, AuthConfig, AuthMethod
 
@@ -31,28 +26,10 @@ from .const import (
     DEFAULT_REQUEST_DELAY,
     DOMAIN,
     PLATFORMS,
-    SERVICE_ADD_CONTACT,
-    SERVICE_ADD_GROUP,
-    SERVICE_ADD_SCHEDULE,
-    SERVICE_ADD_USER,
-    SERVICE_ADD_USER_SCHEDULE_RELAY,
-    SERVICE_DELETE_CONTACT,
-    SERVICE_DELETE_GROUP,
-    SERVICE_DELETE_SCHEDULE,
-    SERVICE_DELETE_USER,
-    SERVICE_LIST_CONTACTS,
-    SERVICE_LIST_GROUPS,
-    SERVICE_LIST_SCHEDULES,
-    SERVICE_LIST_USERS,
-    SERVICE_MODIFY_CONTACT,
-    SERVICE_MODIFY_GROUP,
-    SERVICE_MODIFY_SCHEDULE,
-    SERVICE_MODIFY_USER,
-    SERVICE_REMOVE_USER_SCHEDULE_RELAY,
-    VALID_DAYS,
     get_auth_method_map,
 )
 from .coordinator import AkuvoxDataUpdateCoordinator
+from .services import async_register_services
 from .webhook import (
     async_register_webhook,
     async_unregister_webhook,
@@ -62,29 +39,6 @@ from .webhook import (
 _LOGGER = logging.getLogger(__name__)
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
-
-
-def _csv_to_list(value: Any) -> list[str]:
-    """Split a comma-separated string into a list of trimmed strings.
-
-    Also flattens lists that contain comma-separated items.
-    Coerces other iterables via ``cv.ensure_list``.
-
-    """
-    if isinstance(value, str):
-        return [s.strip() for s in value.split(",") if s.strip()]
-    if isinstance(value, list):
-        result: list[str] = []
-        for item in value:
-            if isinstance(item, str):
-                for part in item.split(","):
-                    stripped = part.strip()
-                    if stripped:
-                        result.append(stripped)
-            else:
-                result.append(str(item))
-        return result
-    return cv.ensure_list(value)
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
@@ -98,263 +52,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         True after all services are registered.
 
     """
-    service.async_register_platform_entity_service(
-        hass,
-        DOMAIN,
-        SERVICE_LIST_SCHEDULES,
-        entity_domain=Platform.LOCK,
-        schema={
-            vol.Optional("page"): cv.positive_int,
-        },
-        func=SERVICE_LIST_SCHEDULES,
-        supports_response=SupportsResponse.ONLY,
-    )
-
-    service.async_register_platform_entity_service(
-        hass,
-        DOMAIN,
-        SERVICE_LIST_USERS,
-        entity_domain=Platform.LOCK,
-        schema={
-            vol.Optional("page"): cv.positive_int,
-        },
-        func=SERVICE_LIST_USERS,
-        supports_response=SupportsResponse.ONLY,
-    )
-
-    service.async_register_platform_entity_service(
-        hass,
-        DOMAIN,
-        SERVICE_ADD_SCHEDULE,
-        entity_domain=Platform.LOCK,
-        schema={
-            vol.Required("schedule_type"): vol.In(["0", "1", "2"]),
-            vol.Required("name"): vol.All(cv.string, vol.Length(min=1)),
-            vol.Optional("week"): vol.All(
-                cv.ensure_list,
-                vol.Length(min=1),
-                [vol.In(VALID_DAYS)],
-                vol.Unique(),
-            ),
-            vol.Optional("date_start"): cv.date,
-            vol.Optional("date_end"): cv.date,
-            vol.Required("time_start"): cv.time,
-            vol.Required("time_end"): cv.time,
-        },
-        func=SERVICE_ADD_SCHEDULE,
-    )
-
-    service.async_register_platform_entity_service(
-        hass,
-        DOMAIN,
-        SERVICE_MODIFY_SCHEDULE,
-        entity_domain=Platform.LOCK,
-        schema={
-            vol.Required("id"): cv.string,
-            vol.Optional("schedule_type"): vol.In(["0", "1", "2"]),
-            vol.Optional("name"): vol.All(cv.string, vol.Length(min=1)),
-            vol.Optional("week"): vol.All(
-                cv.ensure_list,
-                vol.Length(min=1),
-                [vol.In(VALID_DAYS)],
-                vol.Unique(),
-            ),
-            vol.Optional("date_start"): cv.date,
-            vol.Optional("date_end"): cv.date,
-            vol.Optional("time_start"): cv.time,
-            vol.Optional("time_end"): cv.time,
-        },
-        func=SERVICE_MODIFY_SCHEDULE,
-    )
-
-    service.async_register_platform_entity_service(
-        hass,
-        DOMAIN,
-        SERVICE_DELETE_SCHEDULE,
-        entity_domain=Platform.LOCK,
-        schema={
-            vol.Required("id"): cv.string,
-        },
-        func=SERVICE_DELETE_SCHEDULE,
-    )
-
-    service.async_register_platform_entity_service(
-        hass,
-        DOMAIN,
-        SERVICE_ADD_USER,
-        entity_domain=Platform.LOCK,
-        schema={
-            vol.Required("name"): cv.string,
-            vol.Required("schedules"): vol.All(
-                _csv_to_list,
-                vol.Length(min=1),
-                [vol.All(cv.string, vol.Length(min=1), vol.Match(r"^\d+$"))],
-                vol.Unique(),
-            ),
-            vol.Required("lift_floor_num"): cv.string,
-            vol.Optional("user_id"): cv.string,
-            vol.Optional("web_relay"): cv.string,
-            vol.Optional("private_pin"): cv.string,
-            vol.Optional("card_code"): cv.string,
-        },
-        func=SERVICE_ADD_USER,
-    )
-
-    service.async_register_platform_entity_service(
-        hass,
-        DOMAIN,
-        SERVICE_MODIFY_USER,
-        entity_domain=Platform.LOCK,
-        schema={
-            vol.Required("id"): cv.string,
-            vol.Optional("name"): cv.string,
-            vol.Optional("user_id"): cv.string,
-            vol.Optional("schedule_relay"): cv.string,
-            vol.Optional("lift_floor_num"): cv.string,
-            vol.Optional("web_relay"): cv.string,
-            vol.Optional("private_pin"): cv.string,
-            vol.Optional("card_code"): cv.string,
-        },
-        func=SERVICE_MODIFY_USER,
-    )
-
-    service.async_register_platform_entity_service(
-        hass,
-        DOMAIN,
-        SERVICE_DELETE_USER,
-        entity_domain=Platform.LOCK,
-        schema={
-            vol.Required("id"): cv.string,
-        },
-        func=SERVICE_DELETE_USER,
-    )
-
-    service.async_register_platform_entity_service(
-        hass,
-        DOMAIN,
-        SERVICE_ADD_USER_SCHEDULE_RELAY,
-        entity_domain=Platform.LOCK,
-        schema={
-            vol.Required("id"): cv.string,
-            vol.Required("schedule_id"): cv.string,
-            vol.Required("relay_id"): cv.string,
-        },
-        func=SERVICE_ADD_USER_SCHEDULE_RELAY,
-    )
-
-    service.async_register_platform_entity_service(
-        hass,
-        DOMAIN,
-        SERVICE_REMOVE_USER_SCHEDULE_RELAY,
-        entity_domain=Platform.LOCK,
-        schema={
-            vol.Required("id"): cv.string,
-            vol.Required("schedule_id"): cv.string,
-            vol.Required("relay_id"): cv.string,
-        },
-        func=SERVICE_REMOVE_USER_SCHEDULE_RELAY,
-    )
-
-    # ── Contact services ─────────────────────────────────────
-
-    service.async_register_platform_entity_service(
-        hass,
-        DOMAIN,
-        SERVICE_LIST_CONTACTS,
-        entity_domain=Platform.LOCK,
-        schema={
-            vol.Optional("page"): cv.positive_int,
-        },
-        func=SERVICE_LIST_CONTACTS,
-        supports_response=SupportsResponse.ONLY,
-    )
-
-    service.async_register_platform_entity_service(
-        hass,
-        DOMAIN,
-        SERVICE_ADD_CONTACT,
-        entity_domain=Platform.LOCK,
-        schema={
-            vol.Required("name"): vol.All(cv.string, vol.Length(min=1)),
-            vol.Optional("phone"): cv.string,
-            vol.Optional("group"): cv.string,
-        },
-        func=SERVICE_ADD_CONTACT,
-    )
-
-    service.async_register_platform_entity_service(
-        hass,
-        DOMAIN,
-        SERVICE_MODIFY_CONTACT,
-        entity_domain=Platform.LOCK,
-        schema={
-            vol.Required("id"): cv.string,
-            vol.Optional("name"): vol.All(cv.string, vol.Length(min=1)),
-            vol.Optional("phone"): cv.string,
-            vol.Optional("group"): cv.string,
-        },
-        func=SERVICE_MODIFY_CONTACT,
-    )
-
-    service.async_register_platform_entity_service(
-        hass,
-        DOMAIN,
-        SERVICE_DELETE_CONTACT,
-        entity_domain=Platform.LOCK,
-        schema={
-            vol.Required("id"): vol.All(_csv_to_list, vol.Length(min=1), [cv.string]),
-        },
-        func=SERVICE_DELETE_CONTACT,
-    )
-
-    # ── Group services ───────────────────────────────────────
-
-    service.async_register_platform_entity_service(
-        hass,
-        DOMAIN,
-        SERVICE_LIST_GROUPS,
-        entity_domain=Platform.LOCK,
-        schema={
-            vol.Optional("page"): cv.positive_int,
-        },
-        func=SERVICE_LIST_GROUPS,
-        supports_response=SupportsResponse.ONLY,
-    )
-
-    service.async_register_platform_entity_service(
-        hass,
-        DOMAIN,
-        SERVICE_ADD_GROUP,
-        entity_domain=Platform.LOCK,
-        schema={
-            vol.Required("name"): vol.All(cv.string, vol.Length(min=1)),
-        },
-        func=SERVICE_ADD_GROUP,
-    )
-
-    service.async_register_platform_entity_service(
-        hass,
-        DOMAIN,
-        SERVICE_MODIFY_GROUP,
-        entity_domain=Platform.LOCK,
-        schema={
-            vol.Required("id"): cv.string,
-            vol.Required("name"): vol.All(cv.string, vol.Length(min=1)),
-        },
-        func=SERVICE_MODIFY_GROUP,
-    )
-
-    service.async_register_platform_entity_service(
-        hass,
-        DOMAIN,
-        SERVICE_DELETE_GROUP,
-        entity_domain=Platform.LOCK,
-        schema={
-            vol.Required("id"): cv.string,
-        },
-        func=SERVICE_DELETE_GROUP,
-    )
-
+    await async_register_services(hass)
     return True
 
 

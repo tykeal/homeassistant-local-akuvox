@@ -10,7 +10,7 @@ import logging
 import re
 import time
 from collections.abc import Callable, Coroutine
-from typing import Any, ClassVar, cast
+from typing import Any, cast
 
 from homeassistant.components.lock import LockEntity
 from homeassistant.config_entries import ConfigEntry
@@ -26,7 +26,6 @@ from pylocal_akuvox import (
 )
 
 from .const import (
-    DAY_NAME_TO_DIGIT,
     DEFAULT_HOLD_DELAY_SECONDS,
     DEFAULT_RELAY_MODE,
     DEFAULT_RELAY_TYPE,
@@ -39,19 +38,23 @@ from .const import (
 )
 from .coordinator import AkuvoxDataUpdateCoordinator
 from .entity import AkuvoxEntity
+from .validation import (
+    build_schedule_relay,
+    check_required_schedule_fields,
+    convert_date,
+    convert_time,
+    convert_week,
+    is_cloud_provisioned_schedule,
+    is_cloud_provisioned_user,
+    parse_schedule_relay_pairs,
+    validate_pin,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
 # Extra seconds added to the unlock delay before polling the device,
 # giving the relay time to re-lock after the window expires.
 _RELAY_REFRESH_BUFFER_SECONDS = 1
-
-# Required fields per schedule_type (0=date-range, 1=weekly, 2=daily)
-_REQUIRED_FIELDS: dict[str, tuple[str, ...]] = {
-    "0": ("week", "date_start", "date_end"),
-    "1": ("week",),
-    "2": (),
-}
 
 # Akuvox devices expose relays as "RelayA", "RelayB", etc.
 # with a single uppercase letter A-Z suffix.
@@ -603,72 +606,6 @@ class AkuvoxLockEntity(AkuvoxEntity, LockEntity):
             _LOGGER.debug("list_users result: %s", masked)
         return cast(ServiceResponse, {"users": user_dicts})
 
-    @staticmethod
-    def _convert_week(days: list[str]) -> str:
-        """Convert day-name list to device digit string.
-
-        Args:
-            days: List of day abbreviations (e.g. ["mon", "fri"]).
-
-        Returns:
-            Sorted digit string for the device (e.g. "15").
-
-        """
-        digits = sorted(DAY_NAME_TO_DIGIT[d] for d in days)
-        return "".join(digits)
-
-    @staticmethod
-    def _convert_date(value: dt.date) -> str:
-        """Convert a date object to YYYYMMDD string.
-
-        Args:
-            value: The date to convert.
-
-        Returns:
-            Date formatted as YYYYMMDD for the device.
-
-        """
-        return value.strftime("%Y%m%d")
-
-    @staticmethod
-    def _convert_time(value: dt.time) -> str:
-        """Convert a time object to HH:MM string.
-
-        Args:
-            value: The time to convert.
-
-        Returns:
-            Time formatted as HH:MM for the device.
-
-        """
-        return value.strftime("%H:%M")
-
-    def _check_required_schedule_fields(
-        self,
-        schedule_type: str,
-        **kwargs: Any,
-    ) -> None:
-        """Validate required fields are present for the schedule type.
-
-        Type 0 (date range) requires week, date_start, date_end.
-        Type 1 (weekly) requires week.
-        Type 2 (daily) has no extra required fields.
-        time_start and time_end are enforced by the schema.
-
-        Args:
-            schedule_type: The schedule type ("0", "1", "2").
-            **kwargs: Service call data.
-
-        Raises:
-            ServiceValidationError: If a required field is missing.
-
-        """
-        for field in _REQUIRED_FIELDS.get(schedule_type, ()):
-            if kwargs.get(field) is None:
-                raise ServiceValidationError(
-                    f"Field '{field}' is required for schedule type {schedule_type}",
-                )
-
     async def add_schedule(self, **kwargs: Any) -> None:
         """Create a new access schedule on the device.
 
@@ -685,12 +622,12 @@ class AkuvoxLockEntity(AkuvoxEntity, LockEntity):
 
         """
         stype = kwargs["schedule_type"]
-        self._check_required_schedule_fields(
+        check_required_schedule_fields(
             stype, **{k: v for k, v in kwargs.items() if k != "schedule_type"}
         )
 
         week_list: list[str] | None = kwargs.get("week")
-        week_str = self._convert_week(week_list) if week_list else None
+        week_str = convert_week(week_list) if week_list else None
 
         date_start: dt.date | None = kwargs.get("date_start")
         date_end: dt.date | None = kwargs.get("date_end")
@@ -703,10 +640,10 @@ class AkuvoxLockEntity(AkuvoxEntity, LockEntity):
                 name=kwargs.get("name"),
                 week=week_str,
                 daily=None,
-                date_start=(self._convert_date(date_start) if date_start else None),
-                date_end=(self._convert_date(date_end) if date_end else None),
-                time_start=self._convert_time(time_start),
-                time_end=self._convert_time(time_end),
+                date_start=(convert_date(date_start) if date_start else None),
+                date_end=(convert_date(date_end) if date_end else None),
+                time_start=convert_time(time_start),
+                time_end=convert_time(time_end),
             )
         except AkuvoxValidationError as err:
             raise ServiceValidationError(
@@ -766,7 +703,7 @@ class AkuvoxLockEntity(AkuvoxEntity, LockEntity):
                 f"Schedule '{schedule_id}' not found",
             )
 
-        if self._is_cloud_provisioned_schedule(target):
+        if is_cloud_provisioned_schedule(target):
             raise ServiceValidationError(
                 f"Cannot {action} cloud-provisioned schedule",
             )
@@ -796,14 +733,14 @@ class AkuvoxLockEntity(AkuvoxEntity, LockEntity):
         # Validate type-specific fields when schedule_type changes
         stype: str | None = kwargs.get("schedule_type")
         if stype is not None:
-            self._check_required_schedule_fields(
+            check_required_schedule_fields(
                 stype,
                 **{k: v for k, v in kwargs.items() if k != "schedule_type"},
             )
 
         # Convert optional fields
         week_list: list[str] | None = kwargs.get("week")
-        week_str = self._convert_week(week_list) if week_list else None
+        week_str = convert_week(week_list) if week_list else None
 
         date_start: dt.date | None = kwargs.get("date_start")
         date_end: dt.date | None = kwargs.get("date_end")
@@ -817,10 +754,10 @@ class AkuvoxLockEntity(AkuvoxEntity, LockEntity):
                 name=kwargs.get("name"),
                 week=week_str,
                 daily=None,
-                date_start=(self._convert_date(date_start) if date_start else None),
-                date_end=(self._convert_date(date_end) if date_end else None),
-                time_start=(self._convert_time(time_start) if time_start else None),
-                time_end=(self._convert_time(time_end) if time_end else None),
+                date_start=(convert_date(date_start) if date_start else None),
+                date_end=(convert_date(date_end) if date_end else None),
+                time_start=(convert_time(time_start) if time_start else None),
+                time_end=(convert_time(time_end) if time_end else None),
             )
         except AkuvoxValidationError as err:
             raise ServiceValidationError(
@@ -901,65 +838,6 @@ class AkuvoxLockEntity(AkuvoxEntity, LockEntity):
             event_data["config_entry_id"] = config_entry.entry_id
         self.hass.bus.async_fire(EVENT_SCHEDULE_CHANGED, event_data)
 
-    @staticmethod
-    def _is_cloud_provisioned_user(user: User) -> bool:
-        """Return True if the user is cloud-provisioned.
-
-        Akuvox firmware varies across models and versions:
-          - E18C/A08S may set ``source_type`` to ``"2"`` (cloud)
-            or ``source`` to ``"Cloud"``
-          - X916 may omit ``source_type`` entirely
-          - SDMC-managed users may have ``"SDMC"`` as source
-
-        This checks both fields to handle all known variants.
-        """
-        if user.source is not None and user.source not in ("Local", ""):
-            return True
-        return user.source_type is not None and user.source_type not in (
-            "1",
-            "Local",
-            "",
-        )
-
-    _FACTORY_SCHEDULE_IDS: ClassVar[frozenset[str]] = frozenset({"1001", "1002"})
-
-    @staticmethod
-    def _is_cloud_provisioned_schedule(
-        schedule: AccessSchedule,
-    ) -> bool:
-        """Return True if the schedule is cloud-provisioned.
-
-        Schedule ``source_type`` uses numeric codes:
-        ``"1"``=Local, ``"2"``=Cloud, ``"3"``=ACMS, ``"4"``=SDMC.
-        Treated as local when absent, empty, or ``"1"``;
-        otherwise non-local.
-
-        Factory schedules 1001 ("Always") and 1002 ("Never") are
-        always treated as local even when a cloud enrolment sets
-        their ``source_type`` to a non-local value.
-        """
-        if schedule.display_id in AkuvoxLockEntity._FACTORY_SCHEDULE_IDS:
-            return False
-        return schedule.source_type is not None and schedule.source_type not in (
-            "1",
-            "",
-        )
-
-    def _validate_pin(self, pin: str | None) -> None:
-        """Validate private_pin is 4-8 digits if provided.
-
-        Args:
-            pin: The PIN string to validate, or None.
-
-        Raises:
-            ServiceValidationError: If PIN is not 4-8 decimal digits.
-
-        """
-        if pin is not None and (len(pin) < 4 or len(pin) > 8 or not pin.isdigit()):
-            raise ServiceValidationError(
-                "PIN must be 4-8 digits",
-            )
-
     async def _fetch_local_user(
         self,
         user_id: str,
@@ -1004,7 +882,7 @@ class AkuvoxLockEntity(AkuvoxEntity, LockEntity):
                 f"{service}: user '{user_id}' not found",
             )
 
-        if self._is_cloud_provisioned_user(target):
+        if is_cloud_provisioned_user(target):
             raise ServiceValidationError(
                 f"{service}: user is cloud-provisioned",
             )
@@ -1050,73 +928,10 @@ class AkuvoxLockEntity(AkuvoxEntity, LockEntity):
                 raise ServiceValidationError(
                     f"Schedule '{did}' not found on device",
                 )
-            if self._is_cloud_provisioned_schedule(sched):
+            if is_cloud_provisioned_schedule(sched):
                 raise ServiceValidationError(
                     "Cannot assign cloud-provisioned schedule",
                 )
-
-    def _build_schedule_relay(
-        self,
-        display_ids: list[str],
-    ) -> str:
-        """Build a schedule_relay string from display_ids.
-
-        Pairs each display_id with the entity's relay number
-        using comma separation (device firmware requirement).
-
-        Args:
-            display_ids: Schedule display_ids to assign.
-
-        Returns:
-            Formatted schedule_relay string (e.g. ``"10-1,20-1"``).
-
-        """
-        parts: list[str] = []
-        for did in display_ids:
-            parts.append(f"{did}-{self._relay_number}")
-        return ",".join(parts)
-
-    @staticmethod
-    def _parse_schedule_relay_pairs(
-        raw: str,
-        *,
-        allow_empty: bool = False,
-    ) -> list[str]:
-        """Parse a schedule_relay string into validated pairs.
-
-        Accepts comma or semicolon separators and strips whitespace.
-        Each pair must match the ``<digits>-<digits>`` format.
-
-        Args:
-            raw: Raw schedule_relay string from user or device.
-            allow_empty: If ``True``, return an empty list instead
-                of raising when no valid pairs are found.
-
-        Returns:
-            List of validated ``"<schedule_id>-<relay_id>"`` pairs.
-
-        Raises:
-            ServiceValidationError: If any pair is malformed or
-                the result is empty (unless *allow_empty*).
-
-        """
-        pairs: list[str] = []
-        for raw_pair in re.split(r"[;,]", raw):
-            pair = raw_pair.strip()
-            if not pair:
-                continue
-            if not re.fullmatch(r"\d+-\d+", pair):
-                raise ServiceValidationError(
-                    f"Invalid schedule_relay entry '{pair}'. "
-                    "Expected format '<schedule_id>-<relay_id>'.",
-                )
-            pairs.append(pair)
-        if not pairs and not allow_empty:
-            raise ServiceValidationError(
-                "schedule_relay must contain at least one "
-                "'<schedule_id>-<relay_id>' pair.",
-            )
-        return pairs
 
     async def add_user(self, **kwargs: Any) -> None:
         """Create a new user on the device.
@@ -1135,10 +950,10 @@ class AkuvoxLockEntity(AkuvoxEntity, LockEntity):
 
         """
         schedules: list[str] = kwargs["schedules"]
-        self._validate_pin(kwargs.get("private_pin"))
+        validate_pin(kwargs.get("private_pin"))
         await self._check_cloud_schedules(schedules)
 
-        schedule_relay = self._build_schedule_relay(schedules)
+        schedule_relay = build_schedule_relay(schedules, self._relay_number)
 
         try:
             await self.coordinator.device.add_user(
@@ -1186,11 +1001,11 @@ class AkuvoxLockEntity(AkuvoxEntity, LockEntity):
         device_user_id: str = kwargs["id"]
         await self._fetch_local_user(device_user_id)
 
-        self._validate_pin(kwargs.get("private_pin"))
+        validate_pin(kwargs.get("private_pin"))
 
         schedule_relay: str | None = kwargs.get("schedule_relay")
         if schedule_relay is not None:
-            parsed_pairs = self._parse_schedule_relay_pairs(schedule_relay)
+            parsed_pairs = parse_schedule_relay_pairs(schedule_relay)
             sched_ids = [p.split("-", 1)[0] for p in parsed_pairs]
             await self._check_cloud_schedules(sched_ids)
             # Normalize to comma-separated (device firmware requirement).
@@ -1297,7 +1112,7 @@ class AkuvoxLockEntity(AkuvoxEntity, LockEntity):
         )
 
         current_relay = getattr(user, "schedule_relay", "") or ""
-        pairs = self._parse_schedule_relay_pairs(current_relay, allow_empty=True)
+        pairs = parse_schedule_relay_pairs(current_relay, allow_empty=True)
 
         new_pair = f"{schedule_id}-{relay_id}"
         if new_pair in pairs:
@@ -1370,7 +1185,7 @@ class AkuvoxLockEntity(AkuvoxEntity, LockEntity):
         )
 
         current_relay = getattr(user, "schedule_relay", "") or ""
-        pairs = self._parse_schedule_relay_pairs(current_relay, allow_empty=True)
+        pairs = parse_schedule_relay_pairs(current_relay, allow_empty=True)
 
         target_pair = f"{schedule_id}-{relay_id}"
         if target_pair not in pairs:
