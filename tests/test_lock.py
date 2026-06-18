@@ -3261,10 +3261,8 @@ async def test_relay_defaults_when_no_config_entry(
     the entity should fall back to default hold delay, NO state
     interpretation, and default level/mode in trigger_relay.
     """
-    from custom_components.local_akuvox.coordinator import (
-        AkuvoxCoordinatorData,
-        RelayConfig,
-    )
+    from custom_components.local_akuvox.coordinator import AkuvoxCoordinatorData
+    from custom_components.local_akuvox.relay_config import RelayConfig
 
     entry = MockConfigEntry(
         domain=DOMAIN,

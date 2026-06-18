@@ -38,15 +38,15 @@ ______________________________________________________________________
 
 **Purpose**: Re-confirm the live code shape and establish a green baseline.
 
-- [ ] T001 [US3] Re-confirm the extraction surface against live source with
+- [x] T001 [US3] Re-confirm the extraction surface against live source with
   `rg "RelayConfig|_build_relay_config|_parse_config_int" custom_components/ tests/`
   and verify only `coordinator.py`, `tests/test_coordinator.py`, and
   `tests/test_lock.py` reference the moved symbols. Map findings to FR-005,
   FR-008, and FR-012 before editing.
-- [ ] T002 [US2] Run `uv run pytest tests/ -q` from the repository root and
+- [x] T002 [US2] Run `uv run pytest tests/ -q` from the repository root and
   record any pre-existing failures before making changes. This guards FR-006,
   FR-007, and FR-009.
-- [ ] T003 [US4] Run `uv run ruff check custom_components/ tests/` and
+- [x] T003 [US4] Run `uv run ruff check custom_components/ tests/` and
   `uv run ruff format --check custom_components/ tests/` from the repository
   root to capture the baseline lint/format state before the refactor. This
   guards FR-011.
@@ -63,7 +63,7 @@ ______________________________________________________________________
 **⚠️ CRITICAL**: `relay_config.py` may import constants from `.const`, but it
 MUST NOT import from `coordinator.py` or any Home Assistant coordinator state.
 
-- [ ] T004 [US3] Create
+- [x] T004 [US3] Create
   `custom_components/local_akuvox/relay_config.py` with SPDX header,
   module docstring, `from __future__ import annotations`, `import logging`,
   `from dataclasses import dataclass`, `from typing import Any`, and its own
@@ -73,16 +73,16 @@ MUST NOT import from `coordinator.py` or any Home Assistant coordinator state.
   `CONFIG_KEY_RELAY_TYPE_SUFFIX`, `DEFAULT_HOLD_DELAY_SECONDS`,
   `DEFAULT_RELAY_MODE`, and `DEFAULT_RELAY_TYPE`. Do not import
   `CONFIG_KEY_LOCATION` or `RELAY_KEY_RE`. Covers FR-001, FR-011, and FR-012.
-- [ ] T005 [US3] Move the frozen `RelayConfig` dataclass into
+- [x] T005 [US3] Move the frozen `RelayConfig` dataclass into
   `custom_components/local_akuvox/relay_config.py`, preserving the class
   docstring, `frozen=True`, fields `name`, `hold_delay`, `relay_type`,
   `relay_mode`, and existing defaults. Covers FR-002 and SC-006.
-- [ ] T006 [US2] Move `_parse_config_int` into
+- [x] T006 [US2] Move `_parse_config_int` into
   `custom_components/local_akuvox/relay_config.py` without logic changes,
   preserving its signature, full docstring, `None` handling, empty-string
   fallback, invalid-integer warning text, min/max checks, allowed-set checks,
   and return values. Covers FR-003, FR-006, and FR-007.
-- [ ] T007 [US2] Move `_build_relay_config` into
+- [x] T007 [US2] Move `_build_relay_config` into
   `custom_components/local_akuvox/relay_config.py` without logic changes,
   preserving its signature, full docstring, name key
   `f"{CONFIG_KEY_RELAY_NAME}{letter}"`, hold-delay key
@@ -92,7 +92,7 @@ MUST NOT import from `coordinator.py` or any Home Assistant coordinator state.
   `f"{CONFIG_KEY_RELAY_PREFIX}{letter}{CONFIG_KEY_RELAY_MODE_SUFFIX}"`,
   defaults, `min_val=1`, and `allowed={0, 1}` validation. Covers FR-004,
   FR-006, and FR-007.
-- [ ] T008 [US3] Verify the new module imports independently by running
+- [x] T008 [US3] Verify the new module imports independently by running
   `uv run python -c "from custom_components.local_akuvox.relay_config import RelayConfig, _build_relay_config, _parse_config_int"`
   and confirm `rg "coordinator" custom_components/local_akuvox/relay_config.py`
   returns no matches. Covers FR-012.
@@ -113,23 +113,23 @@ reports 400 or fewer lines, and aislop no longer reports
 
 ### Implementation for User Story 1
 
-- [ ] T009 [US1] Add
+- [x] T009 [US1] Add
   `from .relay_config import RelayConfig, _build_relay_config` to
   `custom_components/local_akuvox/coordinator.py` so
   `AkuvoxCoordinatorData`, `_cached_relay_configs`, `_fetch_config_from_device_config`,
   and `_apply_default_config` continue using the same symbols from the new
   module. Covers FR-005.
-- [ ] T010 [US1] Remove the inline `RelayConfig`, `_parse_config_int`, and
+- [x] T010 [US1] Remove the inline `RelayConfig`, `_parse_config_int`, and
   `_build_relay_config` definitions from
   `custom_components/local_akuvox/coordinator.py`. Do not re-export aliases for
   private helper compatibility. Covers FR-005 and SC-006.
-- [ ] T011 [US1] Remove now-unused imports from
+- [x] T011 [US1] Remove now-unused imports from
   `custom_components/local_akuvox/coordinator.py`: drop relay parsing constants
   that moved to `relay_config.py` while keeping `CONFIG_KEY_LOCATION`,
   `DEFAULT_SCAN_INTERVAL`, `DOMAIN`, `RELAY_KEY_RE`, `Any`, `dataclass`, and
   `field` where still used. Verify with
   `uv run ruff check custom_components/ tests/`. Covers FR-011.
-- [ ] T012 [US1] Verify the size and duplicate-definition cleanup with
+- [x] T012 [US1] Verify the size and duplicate-definition cleanup with
   `wc -l custom_components/local_akuvox/coordinator.py` and
   `rg "class RelayConfig|def _parse_config_int|def _build_relay_config" custom_components/local_akuvox/coordinator.py`.
   The line count must be 400 or fewer and the `rg` command must return no moved
@@ -150,25 +150,25 @@ assertions after import-path updates.
 
 ### Implementation for User Story 2
 
-- [ ] T013 [US2] Update `tests/test_coordinator.py` imports so
+- [x] T013 [US2] Update `tests/test_coordinator.py` imports so
   `AkuvoxCoordinatorData` and `AkuvoxDataUpdateCoordinator` still come from
   `custom_components.local_akuvox.coordinator`, while `RelayConfig`,
   `_build_relay_config`, and `_parse_config_int` come from
   `custom_components.local_akuvox.relay_config`. Do not change assertions or
   expected warning text. Covers FR-008 and FR-009.
-- [ ] T014 [P] [US2] Update the local import in
+- [x] T014 [P] [US2] Update the local import in
   `tests/test_lock.py::test_relay_defaults_when_no_config_entry` so
   `AkuvoxCoordinatorData` still comes from
   `custom_components.local_akuvox.coordinator` and `RelayConfig` comes from
   `custom_components.local_akuvox.relay_config`. Do not change behavior
   assertions. Covers FR-008 and FR-009.
-- [ ] T015 [US2] Keep the existing helper tests in `tests/test_coordinator.py`
+- [x] T015 [US2] Keep the existing helper tests in `tests/test_coordinator.py`
   rather than adding `tests/test_relay_config.py`, because this repo already has
   direct regression coverage for the moved helpers. Only add a focused
   `tests/test_relay_config.py` if review finds the existing convention requires
   per-module helper tests; if added, move assertions without behavior changes and
   include SPDX header plus module docstring. Covers FR-008 and FR-009.
-- [ ] T016 [US2] Run
+- [x] T016 [US2] Run
   `uv run pytest tests/test_coordinator.py tests/test_lock.py -q` and fix only
   import-path or move-related failures. All assertions must remain behaviorally
   equivalent. Covers FR-006, FR-007, and FR-009.
@@ -188,13 +188,13 @@ interaction.
 
 ### Implementation for User Story 3
 
-- [ ] T017 [US3] Inspect
+- [x] T017 [US3] Inspect
   `custom_components/local_akuvox/relay_config.py` and confirm it contains only
   `RelayConfig`, `_parse_config_int`, `_build_relay_config`, their required
   imports, `_LOGGER`, SPDX header, and docstrings. Do not move
   `AkuvoxCoordinatorData`, `RELAY_KEY_RE`, config fetch/cache methods, or device
   error handling into the new module. Covers FR-001, FR-012, and SC-006.
-- [ ] T018 [US3] Verify import direction with
+- [x] T018 [US3] Verify import direction with
   `uv run python -c "from custom_components.local_akuvox import coordinator, relay_config"`
   and confirm there is no circular import. Covers FR-012.
 
@@ -213,23 +213,23 @@ implementation PR is opened.
 
 ### Verification for User Story 4
 
-- [ ] T019 [US4] Run `uv run pytest tests/ -q` and require 100% pass before any
+- [x] T019 [US4] Run `uv run pytest tests/ -q` and require 100% pass before any
   manual validation. Covers FR-009 and SC-003.
-- [ ] T020 [US4] Run `uv run ruff check custom_components/ tests/` and fix all
+- [x] T020 [US4] Run `uv run ruff check custom_components/ tests/` and fix all
   lint errors without behavior changes. Covers FR-011.
-- [ ] T021 [US4] Run
+- [x] T021 [US4] Run
   `uv run ruff format --check custom_components/ tests/` and fix formatting
   only if the check reports required changes. Covers FR-011.
-- [ ] T022 [US4] Run `uv run pre-commit run mypy --all-files` and fix any type
+- [x] T022 [US4] Run `uv run pre-commit run mypy --all-files` and fix any type
   errors without changing runtime behavior. Covers FR-011.
-- [ ] T023 [US4] Run `uv run pre-commit run interrogate --all-files` and verify
+- [x] T023 [US4] Run `uv run pre-commit run interrogate --all-files` and verify
   docstring coverage remains 100%. Covers FR-011 and SC-004.
-- [ ] T024 [US4] Stage the implementation files, then run
+- [x] T024 [US4] Stage the implementation files, then run
   `aislop ci --staged` and confirm it no longer reports
   `complexity/file-too-large` for
   `custom_components/local_akuvox/coordinator.py`. Covers FR-010, SC-001, and
   SC-002.
-- [ ] T025 [US4] Run `uv run pre-commit run --all-files` before the
+- [x] T025 [US4] Run `uv run pre-commit run --all-files` before the
   implementation commit so reuse, markdownlint, gitlint, actionlint, aislop,
   interrogate, mypy, ruff, and other configured hooks are clean. Covers FR-011.
 
@@ -242,7 +242,7 @@ ______________________________________________________________________
 
 **Purpose**: Preserve atomic commit history for the later implementation stage.
 
-- [ ] T026 [US4] In the implementation PR, commit production and test changes as
+- [x] T026 [US4] In the implementation PR, commit production and test changes as
   one refactor commit, then commit the `specs/009-coordinator-split/tasks.md`
   checkbox flips as a separate atomic docs commit after verification passes.
   Do not bundle checkbox updates with code/test changes.
