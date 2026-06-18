@@ -179,8 +179,8 @@ SERVICE_DELETE_GROUP_SCHEMA = cv.make_entity_service_schema(
 )
 
 
-async def async_register_services(hass: HomeAssistant) -> None:
-    """Register all Akuvox lock entity services."""
+def _register_schedule_services(hass: HomeAssistant) -> None:
+    """Register Akuvox schedule entity services."""
     service.async_register_platform_entity_service(
         hass,
         DOMAIN,
@@ -188,16 +188,6 @@ async def async_register_services(hass: HomeAssistant) -> None:
         entity_domain=Platform.LOCK,
         schema=SERVICE_LIST_SCHEDULES_SCHEMA,
         func=SERVICE_LIST_SCHEDULES,
-        supports_response=SupportsResponse.ONLY,
-    )
-
-    service.async_register_platform_entity_service(
-        hass,
-        DOMAIN,
-        SERVICE_LIST_USERS,
-        entity_domain=Platform.LOCK,
-        schema=SERVICE_LIST_USERS_SCHEMA,
-        func=SERVICE_LIST_USERS,
         supports_response=SupportsResponse.ONLY,
     )
 
@@ -226,6 +216,19 @@ async def async_register_services(hass: HomeAssistant) -> None:
         entity_domain=Platform.LOCK,
         schema=SERVICE_DELETE_SCHEDULE_SCHEMA,
         func=SERVICE_DELETE_SCHEDULE,
+    )
+
+
+def _register_user_services(hass: HomeAssistant) -> None:
+    """Register Akuvox user entity services."""
+    service.async_register_platform_entity_service(
+        hass,
+        DOMAIN,
+        SERVICE_LIST_USERS,
+        entity_domain=Platform.LOCK,
+        schema=SERVICE_LIST_USERS_SCHEMA,
+        func=SERVICE_LIST_USERS,
+        supports_response=SupportsResponse.ONLY,
     )
 
     service.async_register_platform_entity_service(
@@ -273,6 +276,9 @@ async def async_register_services(hass: HomeAssistant) -> None:
         func=SERVICE_REMOVE_USER_SCHEDULE_RELAY,
     )
 
+
+def _register_contact_services(hass: HomeAssistant) -> None:
+    """Register Akuvox contact entity services."""
     service.async_register_platform_entity_service(
         hass,
         DOMAIN,
@@ -310,6 +316,9 @@ async def async_register_services(hass: HomeAssistant) -> None:
         func=SERVICE_DELETE_CONTACT,
     )
 
+
+def _register_group_services(hass: HomeAssistant) -> None:
+    """Register Akuvox group entity services."""
     service.async_register_platform_entity_service(
         hass,
         DOMAIN,
@@ -346,3 +355,11 @@ async def async_register_services(hass: HomeAssistant) -> None:
         schema=SERVICE_DELETE_GROUP_SCHEMA,
         func=SERVICE_DELETE_GROUP,
     )
+
+
+async def async_register_services(hass: HomeAssistant) -> None:
+    """Register all Akuvox lock entity services."""
+    _register_schedule_services(hass)
+    _register_user_services(hass)
+    _register_contact_services(hass)
+    _register_group_services(hass)
