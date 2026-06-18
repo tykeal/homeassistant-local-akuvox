@@ -117,6 +117,17 @@ repos:
         args: [--fix, --exit-non-zero-on-fix]
       - id: ruff-format
 
+  - repo: local
+    hooks:
+      - id: aislop
+        name: aislop ci (staged)
+        entry: aislop ci --staged
+        language: node
+        additional_dependencies:
+          - aislop@0.12.0
+        pass_filenames: false
+        require_serial: true
+
   - repo: https://github.com/fsfe/reuse-tool
     rev: 9fabf9eb815a57aac116b435e8346c200cdb8604  # frozen: v6.2.0
     hooks:
