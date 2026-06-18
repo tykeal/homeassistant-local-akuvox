@@ -38,6 +38,8 @@ from custom_components.local_akuvox.const import (
 from custom_components.local_akuvox.coordinator import (
     AkuvoxCoordinatorData,
     AkuvoxDataUpdateCoordinator,
+)
+from custom_components.local_akuvox.relay_config import (
     RelayConfig,
     _build_relay_config,
     _parse_config_int,
@@ -359,9 +361,6 @@ async def test_coordinator_multi_relay_state_change(
         assert state_b.state == "unlocked"
 
 
-# --- T004: RelayConfig dataclass tests ---
-
-
 def test_relay_config_defaults() -> None:
     """Test RelayConfig uses correct default values."""
     config = RelayConfig()
@@ -390,9 +389,6 @@ def test_relay_config_frozen() -> None:
     config = RelayConfig()
     with pytest.raises(AttributeError):
         config.name = "changed"  # type: ignore[misc]
-
-
-# --- T005: _parse_config_int tests ---
 
 
 def test_parse_config_int_valid() -> None:
@@ -438,9 +434,6 @@ def test_parse_config_int_warns_on_invalid(caplog: Any) -> None:
     assert "TestKey" in caplog.text
 
 
-# --- T006: _build_relay_config tests ---
-
-
 def test_build_relay_config_full(mock_device_config: Any) -> None:
     """Test _build_relay_config returns populated RelayConfig."""
     config = _build_relay_config(mock_device_config, "A")
@@ -452,7 +445,7 @@ def test_build_relay_config_full(mock_device_config: Any) -> None:
 
 def test_build_relay_config_empty() -> None:
     """Test _build_relay_config returns defaults for empty config."""
-    from pylocal_akuvox import (  # type: ignore[attr-defined]
+    from pylocal_akuvox import (
         DeviceConfig,
     )
 
