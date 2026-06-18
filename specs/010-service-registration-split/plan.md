@@ -67,7 +67,8 @@ specs/010-service-registration-split/
 ├── quickstart.md        # Phase 1 developer guide
 ├── contracts/           # Phase 1 module/function contract
 │   └── service_registration.md
-└── spec.md              # Merged Stage 1 source of truth
+├── spec.md              # Merged Stage 1 source of truth
+└── tasks.md             # Phase 2 output; not created in this stage
 ```
 
 ### Source Code (repository root)

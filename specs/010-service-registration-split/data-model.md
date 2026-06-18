@@ -11,8 +11,8 @@ SPDX-License-Identifier: Apache-2.0
 
 This feature introduces no data entity, persistence model, or runtime state.
 Instead, the design artifact is a function inventory for the service
-registration contracts that Stage 5 will implement inside
-`custom_components/local_akuvox/services.py`.
+registration contracts that a later implementation stage will implement
+inside `custom_components/local_akuvox/services.py`.
 
 ## Function Inventory
 

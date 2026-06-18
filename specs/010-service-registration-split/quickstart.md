@@ -56,6 +56,7 @@ Expected results:
 - Do not drop `SupportsResponse.ONLY` from any `list_*` service.
 - Do not add a new module for service registration.
 - Do not rewrite schemas or handlers while moving registration blocks.
-- Do not write `tasks.md` or implementation code during this planning stage.
+- Keep `tasks.md` updates separate from implementation commits when that
+  later stage generates or updates task tracking.
 
 <!-- markdownlint-enable MD013 -->
