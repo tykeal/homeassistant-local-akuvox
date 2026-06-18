@@ -39,7 +39,7 @@ ______________________________________________________________________
 **Purpose**: Re-confirm the live service registration shape and baseline quality
 before the behavior-preserving move.
 
-- [ ] T001 [US2] Re-confirm all 18 live registration blocks in
+- [x] T001 [US2] Re-confirm all 18 live registration blocks in
   `custom_components/local_akuvox/services.py`, including service constants,
   schema constants, `func` values, `entity_domain=Platform.LOCK`, and the four
   `supports_response=SupportsResponse.ONLY` list services. Record that the live
@@ -47,10 +47,10 @@ before the behavior-preserving move.
   `SERVICE_LIST_USERS`, before the remaining schedule and user blocks; treat this
   as source context, not a required post-refactor order, because the spec groups
   complete domains into helpers. Covers FR-008, FR-009, FR-010, and SC-004.
-- [ ] T002 [US2] Run `uv run pytest tests/ -q` from the repository root and
+- [x] T002 [US2] Run `uv run pytest tests/ -q` from the repository root and
   record any pre-existing failures before editing. Do not edit tests for this
   refactor. Covers FR-011 and SC-003.
-- [ ] T003 [P] [US4] Run `uv run ruff check custom_components/ tests/` and
+- [x] T003 [P] [US4] Run `uv run ruff check custom_components/ tests/` and
   `uv run ruff format --check custom_components/ tests/` from the repository
   root to capture the baseline lint and format state. Covers FR-013.
 
@@ -68,7 +68,7 @@ a docstring, and move the exact registration blocks into their domain groups.
 constant, `func`, and any `supports_response` value. The helpers are plain
 `def` functions returning `None`; they are not awaited.
 
-- [ ] T004 [US3] Add
+- [x] T004 [US3] Add
   `_register_schedule_services(hass: HomeAssistant) -> None` with a docstring in
   `custom_components/local_akuvox/services.py`. Move exactly these registration
   blocks into it: `SERVICE_LIST_SCHEDULES`, `SERVICE_ADD_SCHEDULE`,
@@ -78,7 +78,7 @@ constant, `func`, and any `supports_response` value. The helpers are plain
   `func` values, `entity_domain=Platform.LOCK`, and
   `supports_response=SupportsResponse.ONLY` only on `SERVICE_LIST_SCHEDULES`.
   Covers FR-003, FR-004, FR-008, FR-009, FR-013, SC-004, and SC-005.
-- [ ] T005 [US3] Add `_register_user_services(hass: HomeAssistant) -> None` with
+- [x] T005 [US3] Add `_register_user_services(hass: HomeAssistant) -> None` with
   a docstring in `custom_components/local_akuvox/services.py`. Move exactly
   these registration blocks into it: `SERVICE_LIST_USERS`, `SERVICE_ADD_USER`,
   `SERVICE_MODIFY_USER`, `SERVICE_DELETE_USER`,
@@ -90,7 +90,7 @@ constant, `func`, and any `supports_response` value. The helpers are plain
   `entity_domain=Platform.LOCK`, and `supports_response=SupportsResponse.ONLY`
   only on `SERVICE_LIST_USERS`. Covers FR-003, FR-005, FR-008, FR-009, FR-013,
   SC-004, and SC-005.
-- [ ] T006 [US3] Add
+- [x] T006 [US3] Add
   `_register_contact_services(hass: HomeAssistant) -> None` with a docstring in
   `custom_components/local_akuvox/services.py`. Move exactly these registration
   blocks into it: `SERVICE_LIST_CONTACTS`, `SERVICE_ADD_CONTACT`,
@@ -100,7 +100,7 @@ constant, `func`, and any `supports_response` value. The helpers are plain
   `func` values, `entity_domain=Platform.LOCK`, and
   `supports_response=SupportsResponse.ONLY` only on `SERVICE_LIST_CONTACTS`.
   Covers FR-003, FR-006, FR-008, FR-009, FR-013, SC-004, and SC-005.
-- [ ] T007 [US3] Add `_register_group_services(hass: HomeAssistant) -> None`
+- [x] T007 [US3] Add `_register_group_services(hass: HomeAssistant) -> None`
   with a docstring in `custom_components/local_akuvox/services.py`. Move exactly
   these registration blocks into it: `SERVICE_LIST_GROUPS`, `SERVICE_ADD_GROUP`,
   `SERVICE_MODIFY_GROUP`, and `SERVICE_DELETE_GROUP`. Preserve
@@ -109,7 +109,7 @@ constant, `func`, and any `supports_response` value. The helpers are plain
   values, `entity_domain=Platform.LOCK`, and
   `supports_response=SupportsResponse.ONLY` only on `SERVICE_LIST_GROUPS`.
   Covers FR-003, FR-007, FR-008, FR-009, FR-013, SC-004, and SC-005.
-- [ ] T008 [US3] Inspect `custom_components/local_akuvox/services.py` and verify
+- [x] T008 [US3] Inspect `custom_components/local_akuvox/services.py` and verify
   the four helpers contain only their assigned service groups, no helper is
   async, no helper is exported from another module, and no new service
   registration module was added. Covers FR-002, FR-003, FR-004, FR-005, FR-006,
@@ -130,7 +130,7 @@ function-length limit.
 
 ### Implementation for User Story 1
 
-- [ ] T009 [US1] Rewrite
+- [x] T009 [US1] Rewrite
   `custom_components/local_akuvox/services.py:async_register_services` so it
   keeps the public `async def async_register_services(hass: HomeAssistant) -> None`
   signature and docstring, then directly calls the synchronous helpers in this
@@ -140,12 +140,12 @@ function-length limit.
   and preserves the live domain progression while intentionally grouping each
   complete domain together; do not `await` helper calls. Covers FR-001, FR-002,
   FR-010, SC-001, SC-002, and SC-006.
-- [ ] T010 [US1] Remove every inline
+- [x] T010 [US1] Remove every inline
   `service.async_register_platform_entity_service(...)` block from
   `async_register_services` after the helper calls are in place, leaving no
   registration schema, handler, entity-domain, or response-support details in the
   orchestrator body. Covers FR-001, FR-002, SC-001, and SC-002.
-- [ ] T011 [US1] Confirm the public caller stays unchanged by checking
+- [x] T011 [US1] Confirm the public caller stays unchanged by checking
   `custom_components/local_akuvox/__init__.py` still awaits
   `async_register_services(hass)` and no other caller or public API signature was
   changed. Covers FR-001, FR-010, and SC-006.
@@ -165,12 +165,12 @@ without test edits.
 
 ### Verification for User Story 2
 
-- [ ] T012 [US2] Run `uv run pytest tests/test_services.py -q` and fix only
+- [x] T012 [US2] Run `uv run pytest tests/test_services.py -q` and fix only
   refactor-caused failures in `custom_components/local_akuvox/services.py`. Do
   not edit `tests/test_services.py`; it verifies service names through Home
   Assistant behavior, not helper structure or call order. Covers FR-011, SC-003,
   SC-004, and SC-006.
-- [ ] T013 [US2] Re-inspect the helper registrations in
+- [x] T013 [US2] Re-inspect the helper registrations in
   `custom_components/local_akuvox/services.py` and confirm the exact service
   constant set is still 18 services: four schedule, six user, four contact, and
   four group registrations. Covers FR-004, FR-005, FR-006, FR-007, FR-008,
@@ -191,20 +191,20 @@ one service domain and no domain responsibilities are mixed.
 
 ### Verification for User Story 3
 
-- [ ] T014 [US3] Verify `_register_schedule_services` contains only
+- [x] T014 [US3] Verify `_register_schedule_services` contains only
   `SERVICE_LIST_SCHEDULES`, `SERVICE_ADD_SCHEDULE`,
   `SERVICE_MODIFY_SCHEDULE`, and `SERVICE_DELETE_SCHEDULE`, with the list
   service first inside the helper. Covers FR-004 and SC-004.
-- [ ] T015 [US3] Verify `_register_user_services` contains only
+- [x] T015 [US3] Verify `_register_user_services` contains only
   `SERVICE_LIST_USERS`, `SERVICE_ADD_USER`, `SERVICE_MODIFY_USER`,
   `SERVICE_DELETE_USER`, `SERVICE_ADD_USER_SCHEDULE_RELAY`, and
   `SERVICE_REMOVE_USER_SCHEDULE_RELAY`, with the list service first inside the
   helper. Covers FR-005 and SC-004.
-- [ ] T016 [P] [US3] Verify `_register_contact_services` contains only
+- [x] T016 [P] [US3] Verify `_register_contact_services` contains only
   `SERVICE_LIST_CONTACTS`, `SERVICE_ADD_CONTACT`, `SERVICE_MODIFY_CONTACT`, and
   `SERVICE_DELETE_CONTACT`, with the list service first inside the helper.
   Covers FR-006 and SC-004.
-- [ ] T017 [P] [US3] Verify `_register_group_services` contains only
+- [x] T017 [P] [US3] Verify `_register_group_services` contains only
   `SERVICE_LIST_GROUPS`, `SERVICE_ADD_GROUP`, `SERVICE_MODIFY_GROUP`, and
   `SERVICE_DELETE_GROUP`, with the list service first inside the helper. Covers
   FR-007 and SC-004.
@@ -224,25 +224,25 @@ PR is opened.
 
 ### Verification for User Story 4
 
-- [ ] T018 [US4] Run `uv run pytest tests/ -q` and require 100% pass with no test
+- [x] T018 [US4] Run `uv run pytest tests/ -q` and require 100% pass with no test
   edits. Covers FR-011 and SC-003.
-- [ ] T019 [P] [US4] Run `uv run ruff check custom_components/ tests/` and fix
+- [x] T019 [P] [US4] Run `uv run ruff check custom_components/ tests/` and fix
   all lint errors without behavior changes. Covers FR-013.
-- [ ] T020 [P] [US4] Run `uv run ruff format --check custom_components/ tests/`
+- [x] T020 [P] [US4] Run `uv run ruff format --check custom_components/ tests/`
   and fix formatting only if the check reports required changes. Covers FR-013.
-- [ ] T021 [P] [US4] Run `uv run pre-commit run mypy --all-files` and fix type
+- [x] T021 [P] [US4] Run `uv run pre-commit run mypy --all-files` and fix type
   errors without changing runtime behavior. Covers FR-013.
-- [ ] T022 [P] [US4] Run `uv run pre-commit run interrogate --all-files` and
+- [x] T022 [P] [US4] Run `uv run pre-commit run interrogate --all-files` and
   verify docstring coverage remains 100% for the new helper docstrings. Covers
   FR-013 and SC-005.
-- [ ] T023 [US4] Confirm `async_register_services` is 80 lines or fewer with an
+- [x] T023 [US4] Confirm `async_register_services` is 80 lines or fewer with an
   AST-based line-count check or equivalent source inspection. Covers FR-012,
   SC-001, and SC-002.
-- [ ] T024 [US4] Stage `custom_components/local_akuvox/services.py`, then run
+- [x] T024 [US4] Stage `custom_components/local_akuvox/services.py`, then run
   `aislop ci --staged` and confirm it no longer reports
   `complexity/function-too-long` for `async_register_services`. Covers FR-012,
   SC-001, and SC-002.
-- [ ] T025 [US4] Run `uv run pre-commit run --all-files` before the
+- [x] T025 [US4] Run `uv run pre-commit run --all-files` before the
   implementation commit so reuse, markdownlint, gitlint, actionlint, aislop,
   interrogate, mypy, ruff, and other configured hooks are clean. Covers FR-013.
 
@@ -255,7 +255,7 @@ ______________________________________________________________________
 
 **Purpose**: Preserve atomic commit history for the later implementation stage.
 
-- [ ] T026 [US4] In the implementation PR, commit production changes in
+- [x] T026 [US4] In the implementation PR, commit production changes in
   `custom_components/local_akuvox/services.py` as one refactor commit after all
   verification passes, then commit the
   `specs/010-service-registration-split/tasks.md` checkbox flips as a separate
