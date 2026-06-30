@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
@@ -1242,6 +1243,39 @@ async def test_delete_schedule_device_errors(
         )
 
 
+@pytest.mark.parametrize(
+    ("lib_exc", "ha_exc"),
+    [
+        (AkuvoxValidationError, ServiceValidationError),
+        (AkuvoxDeviceError, HomeAssistantError),
+    ],
+    ids=["validation", "device"],
+)
+async def test_delete_schedule_fetch_errors(
+    hass: HomeAssistant,
+    mock_config_entry_data_none: dict[str, Any],
+    mock_akuvox_device: AsyncMock,
+    lib_exc: type[Exception],
+    ha_exc: type[Exception],
+) -> None:
+    """Test schedule fetch errors are mapped before deletion."""
+    mock_akuvox_device.list_schedules.side_effect = lib_exc("fetch failed")
+    await setup_entry(hass, mock_config_entry_data_none)
+
+    with pytest.raises(ha_exc, match="fetch failed"):
+        await hass.services.async_call(
+            DOMAIN,
+            "delete_schedule",
+            service_data={
+                "entity_id": ENTITY_ID,
+                "id": "1",
+            },
+            blocking=True,
+        )
+
+    mock_akuvox_device.delete_schedule.assert_not_called()
+
+
 async def test_delete_schedule_orphaned_warning(
     hass: HomeAssistant,
     mock_config_entry_data_none: dict[str, Any],
@@ -1303,6 +1337,33 @@ async def test_delete_schedule_no_orphan_warning_on_failure(
         )
 
     assert "orphan" not in caplog.text.lower()
+
+
+async def test_delete_schedule_ignores_orphan_check_fetch_error(
+    hass: HomeAssistant,
+    mock_config_entry_data_none: dict[str, Any],
+    mock_akuvox_device: AsyncMock,
+    mock_schedule_list: list[AccessSchedule],
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test delete_schedule succeeds when orphan lookup fails."""
+    mock_akuvox_device.list_schedules.return_value = mock_schedule_list
+    mock_akuvox_device.list_users.side_effect = AkuvoxDeviceError("offline")
+    await setup_entry(hass, mock_config_entry_data_none)
+
+    with caplog.at_level(logging.DEBUG, logger="custom_components.local_akuvox"):
+        await hass.services.async_call(
+            DOMAIN,
+            "delete_schedule",
+            service_data={
+                "entity_id": ENTITY_ID,
+                "id": "1",
+            },
+            blocking=True,
+        )
+
+    assert "Could not check for orphaned assignments" in caplog.text
+    mock_akuvox_device.delete_schedule.assert_called_once_with(id="1")
 
 
 # ── add_user tests ────────────────────────────────────────────
@@ -1737,6 +1798,29 @@ async def test_add_user_schedule_check_validation_error(
         )
 
 
+async def test_add_user_schedule_check_device_error(
+    hass: HomeAssistant,
+    mock_config_entry_data_none: dict[str, Any],
+    mock_akuvox_device: AsyncMock,
+) -> None:
+    """Test device errors while verifying schedules map correctly."""
+    mock_akuvox_device.list_schedules.side_effect = AkuvoxDeviceError("offline")
+    await setup_entry(hass, mock_config_entry_data_none)
+
+    with pytest.raises(HomeAssistantError, match="verify schedules"):
+        await hass.services.async_call(
+            DOMAIN,
+            "add_user",
+            service_data={
+                "entity_id": ENTITY_ID,
+                "name": "Jane Doe",
+                "schedules": ["10"],
+                "lift_floor_num": "5",
+            },
+            blocking=True,
+        )
+
+
 async def test_add_user_fires_event(
     hass: HomeAssistant,
     mock_config_entry_data_none: dict[str, Any],
@@ -1877,6 +1961,40 @@ async def test_modify_user_not_found(
                 "entity_id": ENTITY_ID,
                 "id": "999",
                 "name": "Ghost",
+            },
+            blocking=True,
+        )
+
+    mock_akuvox_device.modify_user.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("lib_exc", "ha_exc"),
+    [
+        (AkuvoxValidationError, ServiceValidationError),
+        (AkuvoxDeviceError, HomeAssistantError),
+    ],
+    ids=["validation", "device"],
+)
+async def test_modify_user_fetch_errors(
+    hass: HomeAssistant,
+    mock_config_entry_data_none: dict[str, Any],
+    mock_akuvox_device: AsyncMock,
+    lib_exc: type[Exception],
+    ha_exc: type[Exception],
+) -> None:
+    """Test user fetch errors are mapped before modification."""
+    mock_akuvox_device.list_users.side_effect = lib_exc("fetch failed")
+    await setup_entry(hass, mock_config_entry_data_none)
+
+    with pytest.raises(ha_exc, match="fetch failed"):
+        await hass.services.async_call(
+            DOMAIN,
+            "modify_user",
+            service_data={
+                "entity_id": ENTITY_ID,
+                "id": "42",
+                "name": "Updated",
             },
             blocking=True,
         )

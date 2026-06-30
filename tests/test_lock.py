@@ -3758,3 +3758,108 @@ async def test_autoclose_unlock_mode_unchanged(
         level=DEFAULT_RELAY_TYPE,
         mode=0,
     )
+
+
+def test_unexpected_relay_key_uses_raw_label() -> None:
+    """Test malformed relay keys fall back to the raw label."""
+    from custom_components.local_akuvox.lock import _relay_key_to_label
+
+    assert _relay_key_to_label("DoorOne") == "DoorOne"
+
+
+@pytest.mark.parametrize(
+    "state",
+    [{"value": "closed"}, object()],
+    ids=["dict-without-state", "unexpected-type"],
+)
+def test_parse_relay_state_rejects_unrecognized_values(state: object) -> None:
+    """Test unrecognized relay state shapes return None."""
+    from custom_components.local_akuvox.lock import _parse_relay_state
+
+    assert _parse_relay_state("RelayA", state) is None
+
+
+async def test_lock_setup_returns_when_coordinator_has_no_data(
+    hass: HomeAssistant,
+    mock_config_entry_data_none: dict[str, Any],
+) -> None:
+    """Test lock platform setup skips entity creation without data."""
+    from custom_components.local_akuvox.lock import async_setup_entry
+
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data=mock_config_entry_data_none,
+        unique_id=MOCK_MAC,
+    )
+    entry.add_to_hass(hass)
+    coordinator = AsyncMock()
+    coordinator.data = None
+    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
+    add_entities = AsyncMock()
+
+    await async_setup_entry(hass, entry, add_entities)
+
+    add_entities.assert_not_called()
+
+
+async def test_lock_entity_rejects_invalid_relay_key(
+    hass: HomeAssistant,
+    mock_device_info: Any,
+) -> None:
+    """Test lock entity initialization rejects malformed relay keys."""
+    from custom_components.local_akuvox.coordinator import (
+        AkuvoxCoordinatorData,
+        AkuvoxDataUpdateCoordinator,
+    )
+    from custom_components.local_akuvox.lock import AkuvoxLockEntity
+
+    coordinator = AkuvoxDataUpdateCoordinator(hass=hass, device=AsyncMock())
+    coordinator.data = AkuvoxCoordinatorData(
+        device_info=mock_device_info,
+        relay_status={"DoorOne": 0},
+        device_name="Test",
+        relay_configs={},
+    )
+
+    with pytest.raises(ValueError, match="Invalid relay key"):
+        AkuvoxLockEntity(coordinator, "DoorOne")
+
+
+@pytest.mark.parametrize(
+    ("method_name", "optimistic_value"),
+    [
+        ("_async_finish_optimistic_unlock", False),
+        ("_async_finish_optimistic_lock", True),
+    ],
+    ids=["unlock", "lock"],
+)
+async def test_finish_optimistic_state_clears_after_refresh_error(
+    hass: HomeAssistant,
+    mock_config_entry_data_none: dict[str, Any],
+    mock_akuvox_device: AsyncMock,
+    method_name: str,
+    optimistic_value: bool,
+) -> None:
+    """Test optimistic cleanup still runs when refresh fails."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data=mock_config_entry_data_none,
+        unique_id=MOCK_MAC,
+    )
+    entry.add_to_hass(hass)
+
+    await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    entity = hass.data["lock"].get_entity("lock.testlab_intercom_front_gate")
+    assert entity is not None
+    entity._optimistic_locked = optimistic_value
+
+    with patch.object(
+        entity.coordinator,
+        "async_refresh",
+        AsyncMock(side_effect=RuntimeError("refresh failed")),
+    ):
+        await getattr(entity, method_name)()
+
+    assert entity._optimistic_locked is None
