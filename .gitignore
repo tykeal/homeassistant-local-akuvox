@@ -12,6 +12,7 @@ venv
 
 # Generated files that can be recreated
 .aislop/install_id
+.aislop/history.jsonl
 .aislop/update_check.json
 addon/coverage.xml
 captive_portal.egg-info/*
