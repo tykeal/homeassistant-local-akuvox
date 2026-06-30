@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from datetime import timedelta
 from typing import Any
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from homeassistant.core import HomeAssistant
@@ -161,6 +161,102 @@ async def test_coordinator_update_interval(
     assert coordinator.update_interval == timedelta(
         seconds=DEFAULT_SCAN_INTERVAL,
     )
+
+
+async def test_coordinator_user_cache_lookup(
+    hass: HomeAssistant,
+    mock_user_list: list[Any],
+) -> None:
+    """Test updating the user cache enables PIN lookups."""
+    device = AsyncMock()
+    coordinator = AkuvoxDataUpdateCoordinator(hass=hass, device=device)
+
+    coordinator.update_user_cache(mock_user_list)
+
+    assert coordinator.get_user_by_pin("1234") == mock_user_list[0]
+    assert coordinator.get_user_by_pin("0000") is None
+
+
+async def test_coordinator_defaults_when_config_api_missing(
+    hass: HomeAssistant,
+    mock_device_info: DeviceInfo,
+    mock_relay_status: dict[str, Any],
+) -> None:
+    """Test missing get_device_config applies default relay config."""
+    device = MagicMock(spec=["get_info", "get_relay_status", "list_users"])
+    device.get_info = AsyncMock(return_value=mock_device_info)
+    device.get_relay_status = AsyncMock(return_value=mock_relay_status)
+    device.list_users = AsyncMock(return_value=[])
+    coordinator = AkuvoxDataUpdateCoordinator(hass=hass, device=device)
+
+    data = await coordinator._async_update_data()
+
+    assert data.device_name == "Akuvox E21V"
+    assert data.relay_configs == {"A": RelayConfig()}
+
+
+async def test_coordinator_config_auth_error_raises_auth_failed(
+    hass: HomeAssistant,
+    mock_device_info: DeviceInfo,
+    mock_relay_status: dict[str, Any],
+) -> None:
+    """Test auth failure during config fetch raises auth failed."""
+    device = AsyncMock()
+    device.get_info = AsyncMock(return_value=mock_device_info)
+    device.get_relay_status = AsyncMock(return_value=mock_relay_status)
+    device.get_device_config = AsyncMock(
+        side_effect=AkuvoxAuthenticationError("bad credentials"),
+    )
+    coordinator = AkuvoxDataUpdateCoordinator(hass=hass, device=device)
+
+    with pytest.raises(ConfigEntryAuthFailed, match="config fetch"):
+        await coordinator._async_update_data()
+
+
+async def test_coordinator_logs_unexpected_user_fetch_error(
+    hass: HomeAssistant,
+    mock_device_info: DeviceInfo,
+    mock_relay_status: dict[str, Any],
+    mock_device_config: Any,
+) -> None:
+    """Test unexpected user fetch errors keep an empty cache."""
+    device = AsyncMock()
+    device.get_info = AsyncMock(return_value=mock_device_info)
+    device.get_relay_status = AsyncMock(return_value=mock_relay_status)
+    device.get_device_config = AsyncMock(return_value=mock_device_config)
+    device.list_users = AsyncMock(side_effect=RuntimeError("boom"))
+    coordinator = AkuvoxDataUpdateCoordinator(hass=hass, device=device)
+
+    data = await coordinator._async_update_data()
+
+    assert data.users == []
+
+
+@pytest.mark.parametrize(
+    ("lib_exc", "ha_exc", "message"),
+    [
+        (AkuvoxAuthenticationError, ConfigEntryAuthFailed, "Authentication failed"),
+        (AkuvoxConnectionError, UpdateFailed, "Failed to get device info"),
+        (AkuvoxDeviceError, UpdateFailed, "Failed to get device info"),
+        (AkuvoxParseError, UpdateFailed, "Failed to get device info"),
+    ],
+    ids=["auth", "connection", "device", "parse"],
+)
+async def test_coordinator_device_info_errors(
+    hass: HomeAssistant,
+    mock_relay_status: dict[str, Any],
+    lib_exc: type[Exception],
+    ha_exc: type[Exception],
+    message: str,
+) -> None:
+    """Test device info fetch errors map to HA exceptions."""
+    device = AsyncMock()
+    device.get_relay_status = AsyncMock(return_value=mock_relay_status)
+    device.get_info = AsyncMock(side_effect=lib_exc("fail"))
+    coordinator = AkuvoxDataUpdateCoordinator(hass=hass, device=device)
+
+    with pytest.raises(ha_exc, match=message):
+        await coordinator._async_update_data()
 
 
 async def test_state_reflects_relay_change_after_update(

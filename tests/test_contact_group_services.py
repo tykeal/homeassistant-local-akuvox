@@ -832,3 +832,94 @@ async def test_delete_group_missing_id(
             },
             blocking=True,
         )
+
+
+@pytest.mark.parametrize(
+    ("service", "device_method", "service_data", "return_response"),
+    [
+        ("list_contacts", "list_contacts", {}, True),
+        ("list_groups", "list_groups", {}, True),
+        ("add_contact", "add_contact", {"name": "Bad Contact"}, False),
+        ("add_group", "add_group", {"name": "Bad Group"}, False),
+        ("modify_group", "modify_group", {"id": "5", "name": "Bad"}, False),
+        ("delete_contact", "delete_contact", {"id": "5"}, False),
+        ("delete_group", "delete_group", {"id": "5"}, False),
+    ],
+    ids=[
+        "list-contacts",
+        "list-groups",
+        "add-contact",
+        "add-group",
+        "modify-group",
+        "delete-contact",
+        "delete-group",
+    ],
+)
+async def test_contact_group_validation_errors(
+    hass: HomeAssistant,
+    mock_config_entry_data_none: dict[str, Any],
+    mock_akuvox_device: AsyncMock,
+    service: str,
+    device_method: str,
+    service_data: dict[str, Any],
+    return_response: bool,
+) -> None:
+    """Test contact and group validation errors map to HA validation."""
+    getattr(mock_akuvox_device, device_method).side_effect = AkuvoxValidationError(
+        "invalid",
+    )
+    await setup_entry(hass, mock_config_entry_data_none)
+
+    with pytest.raises(ServiceValidationError, match="invalid"):
+        await hass.services.async_call(
+            DOMAIN,
+            service,
+            service_data={"entity_id": ENTITY_ID, **service_data},
+            blocking=True,
+            return_response=return_response,
+        )
+
+
+async def test_delete_group_logs_contact_orphan_check_failure(
+    hass: HomeAssistant,
+    mock_config_entry_data_none: dict[str, Any],
+    mock_akuvox_device: AsyncMock,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test delete_group tolerates failures during orphan checking."""
+    mock_akuvox_device.list_groups.return_value = [Group(name="Family", id="5")]
+    mock_akuvox_device.list_contacts.side_effect = AkuvoxDeviceError("offline")
+    await setup_entry(hass, mock_config_entry_data_none)
+
+    with caplog.at_level(logging.DEBUG, logger="custom_components.local_akuvox"):
+        await hass.services.async_call(
+            DOMAIN,
+            "delete_group",
+            service_data={"entity_id": ENTITY_ID, "id": "5"},
+            blocking=True,
+        )
+
+    assert "Could not check for orphaned contacts" in caplog.text
+    mock_akuvox_device.delete_group.assert_called_once_with(id="5")
+
+
+async def test_delete_group_logs_group_name_lookup_failure(
+    hass: HomeAssistant,
+    mock_config_entry_data_none: dict[str, Any],
+    mock_akuvox_device: AsyncMock,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test delete_group proceeds when resolving group name fails."""
+    mock_akuvox_device.list_groups.side_effect = AkuvoxDeviceError("offline")
+    await setup_entry(hass, mock_config_entry_data_none)
+
+    with caplog.at_level(logging.DEBUG, logger="custom_components.local_akuvox"):
+        await hass.services.async_call(
+            DOMAIN,
+            "delete_group",
+            service_data={"entity_id": ENTITY_ID, "id": "5"},
+            blocking=True,
+        )
+
+    assert "Could not resolve group name" in caplog.text
+    mock_akuvox_device.delete_group.assert_called_once_with(id="5")
