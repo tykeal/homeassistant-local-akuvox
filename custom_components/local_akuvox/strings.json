@@ -43,6 +43,16 @@
         "data_description": {
           "webhook_enabled": "When enabled, the integration will configure the device to send event notifications (relay triggers, code entry) to Home Assistant."
         }
+      },
+      "capabilities": {
+        "title": "Capability safety",
+        "description": "pylocal-akuvox 1.0.0 blocks unrecognized or unknown device capabilities by default. Enable this only if you accept attempting unproven operations; confirmed unsupported capabilities remain blocked.",
+        "data": {
+          "attempt_unknown_capability": "Attempt unknown capabilities"
+        },
+        "data_description": {
+          "attempt_unknown_capability": "When enabled, UNKNOWN capabilities are attempted after the device is identified. This does not bypass confirmed UNSUPPORTED capabilities, adapter failures, or device/network/authentication errors."
+        }
       }
     },
     "error": {
@@ -70,10 +80,12 @@
           "username": "Username",
           "password": "Password",
           "webhook_enabled": "Enable Webhooks",
-          "request_delay": "Request delay (seconds)"
+          "request_delay": "Request delay (seconds)",
+          "attempt_unknown_capability": "Attempt unknown capabilities"
         },
         "data_description": {
-          "request_delay": "Delay between consecutive API requests to the device. Increase if the device becomes unresponsive during batch operations."
+          "request_delay": "Delay between consecutive API requests to the device. Increase if the device becomes unresponsive during batch operations.",
+          "attempt_unknown_capability": "Attempt operations the upstream matrix marks UNKNOWN. Leave disabled for the safest behavior; confirmed UNSUPPORTED capabilities remain blocked."
         }
       }
     }
@@ -467,6 +479,12 @@
     },
     "cannot_remove_last_pair": {
       "message": "Cannot remove the last schedule-relay pair."
+    }
+  },
+  "issues": {
+    "unsupported_capability": {
+      "title": "Akuvox capability is unsupported",
+      "description": "{entry_title} could not complete {context}. Reason: {reason}; capability: {capability}; device class: {device_class}. {mitigation}"
     }
   }
 }

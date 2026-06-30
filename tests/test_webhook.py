@@ -13,6 +13,7 @@ from urllib.parse import urlencode
 from aiohttp import web
 from aiohttp.test_utils import make_mocked_request
 from homeassistant.core import HomeAssistant
+from pylocal_akuvox import AkuvoxUnsupportedError, Capability
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.local_akuvox.const import (
@@ -589,6 +590,30 @@ async def test_refresh_user_cache_error_clears_guard() -> None:
 
     assert "entry_error" not in _refresh_in_flight
     coordinator.update_user_cache.assert_not_called()
+
+
+async def test_refresh_user_cache_reports_unsupported(
+    hass: HomeAssistant,
+) -> None:
+    """Test user cache refresh reports unsupported capabilities."""
+    coordinator = MagicMock()
+    coordinator.hass = hass
+    coordinator.config_entry = None
+    coordinator.device.list_users = AsyncMock(
+        side_effect=AkuvoxUnsupportedError(
+            "blocked",
+            reason="capability_missing",
+            capability=Capability.USER_LIST,
+        )
+    )
+    coordinator.update_user_cache = MagicMock()
+    _refresh_in_flight.add("entry_unsupported")
+
+    await _refresh_user_cache(coordinator, "entry_unsupported")
+
+    assert "entry_unsupported" not in _refresh_in_flight
+    coordinator.update_user_cache.assert_not_called()
+    assert len(hass.data[DOMAIN]["unsupported_capability_issue_ids"]) == 1
 
 
 async def test_unknown_event_truncates_long_event_name(

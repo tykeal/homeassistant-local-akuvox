@@ -13,6 +13,7 @@ import pytest
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
+from pylocal_akuvox import Capability, CapabilityStatus, DeviceCapabilities
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.local_akuvox.const import (
@@ -28,6 +29,19 @@ from custom_components.local_akuvox.const import (
     DOMAIN,
 )
 from tests.conftest import MOCK_MAC
+
+
+def _supported_capabilities() -> DeviceCapabilities:
+    """Return a capability profile with all capabilities supported."""
+    return DeviceCapabilities(
+        device_class="E21V",
+        firmware_version="1.0.0",
+        capabilities={
+            capability: CapabilityStatus.SUPPORTED for capability in Capability
+        },
+        field_aliases={},
+        schema_shapes={},
+    )
 
 
 async def test_entity_unique_id(
@@ -122,6 +136,7 @@ async def test_is_locked_true(
         from pylocal_akuvox import DeviceInfo
 
         device = mock_cls.return_value
+        device.capabilities = _supported_capabilities()
         device.get_info = AsyncMock(
             return_value=DeviceInfo(
                 model="E21V",
@@ -174,6 +189,7 @@ async def test_is_locked_false(
         from pylocal_akuvox import DeviceInfo
 
         device = mock_cls.return_value
+        device.capabilities = _supported_capabilities()
         device.get_info = AsyncMock(
             return_value=DeviceInfo(
                 model="E21V",
@@ -222,6 +238,7 @@ async def test_is_locked_unknown_for_unexpected_int(
         from pylocal_akuvox import DeviceInfo
 
         device = mock_cls.return_value
+        device.capabilities = _supported_capabilities()
         device.get_info = AsyncMock(
             return_value=DeviceInfo(
                 model="E21V",
@@ -270,6 +287,7 @@ async def test_is_locked_unknown_for_unexpected_str(
         from pylocal_akuvox import DeviceInfo
 
         device = mock_cls.return_value
+        device.capabilities = _supported_capabilities()
         device.get_info = AsyncMock(
             return_value=DeviceInfo(
                 model="E21V",
@@ -320,6 +338,7 @@ async def test_is_locked_none_for_missing_relay_key(
         from pylocal_akuvox import DeviceInfo
 
         device = mock_cls.return_value
+        device.capabilities = _supported_capabilities()
         device.get_info = AsyncMock(
             return_value=DeviceInfo(
                 model="E21V",
@@ -384,6 +403,7 @@ async def test_is_locked_handles_dict_int_state(
         from pylocal_akuvox import DeviceInfo
 
         device = mock_cls.return_value
+        device.capabilities = _supported_capabilities()
         device.get_info = AsyncMock(
             return_value=DeviceInfo(
                 model="E21V",
@@ -430,6 +450,7 @@ async def test_entity_unavailable_when_coordinator_fails(
         autospec=True,
     ) as mock_cls:
         device = mock_cls.return_value
+        device.capabilities = _supported_capabilities()
         device.get_info = AsyncMock(
             return_value=DeviceInfo(
                 model="E21V",
@@ -489,6 +510,7 @@ async def test_multi_relay_entities_created(
         from pylocal_akuvox import DeviceInfo
 
         device = mock_cls.return_value
+        device.capabilities = _supported_capabilities()
         device.get_info = AsyncMock(
             return_value=DeviceInfo(
                 model="E21V",
@@ -549,6 +571,7 @@ async def test_multi_relay_distinct_names(
         from pylocal_akuvox import DeviceInfo
 
         device = mock_cls.return_value
+        device.capabilities = _supported_capabilities()
         device.get_info = AsyncMock(
             return_value=DeviceInfo(
                 model="E21V",
@@ -607,6 +630,7 @@ async def test_unlock_relay_a_does_not_change_relay_b(
         from pylocal_akuvox import DeviceInfo
 
         device = mock_cls.return_value
+        device.capabilities = _supported_capabilities()
         device.get_info = AsyncMock(
             return_value=DeviceInfo(
                 model="E21V",
@@ -684,6 +708,7 @@ async def test_is_locked_handles_dict_state_format(
         from pylocal_akuvox import DeviceInfo
 
         device = mock_cls.return_value
+        device.capabilities = _supported_capabilities()
         device.get_info = AsyncMock(
             return_value=DeviceInfo(
                 model="E21V",
@@ -730,6 +755,7 @@ async def test_unrecognized_relay_keys_skipped(
         from pylocal_akuvox import DeviceInfo
 
         device = mock_cls.return_value
+        device.capabilities = _supported_capabilities()
         device.get_info = AsyncMock(
             return_value=DeviceInfo(
                 model="E21V",
@@ -1263,6 +1289,7 @@ async def test_async_unlock_raises_on_device_error(
         from pylocal_akuvox import DeviceInfo
 
         device = mock_cls.return_value
+        device.capabilities = _supported_capabilities()
         device.get_info = AsyncMock(
             return_value=DeviceInfo(
                 model="E21V",
@@ -1363,6 +1390,7 @@ async def test_async_unlock_completes_within_5s(
         from pylocal_akuvox import DeviceInfo
 
         device = mock_cls.return_value
+        device.capabilities = _supported_capabilities()
         device.get_info = AsyncMock(
             return_value=DeviceInfo(
                 model="E21V",
@@ -2804,6 +2832,7 @@ async def test_unlock_fallback_delay_when_relay_not_in_configs(
         device_info=original.device_info,
         relay_status=original.relay_status,
         device_name=original.device_name,
+        capabilities=original.capabilities,
         relay_configs={},
     )
 
@@ -3189,6 +3218,7 @@ async def test_state_fallback_no_when_relay_not_in_configs(
         device_info=original.device_info,
         relay_status={"RelayA": 0},
         device_name=original.device_name,
+        capabilities=original.capabilities,
         relay_configs={},
     )
 
@@ -3227,6 +3257,7 @@ async def test_unlock_fallback_level_0_when_relay_not_in_configs(
         device_info=original.device_info,
         relay_status=original.relay_status,
         device_name=original.device_name,
+        capabilities=original.capabilities,
         relay_configs={},
     )
 
@@ -3281,6 +3312,7 @@ async def test_relay_defaults_when_no_config_entry(
         device_info=original.device_info,
         relay_status={"RelayA": 0},
         device_name=original.device_name,
+        capabilities=original.capabilities,
         relay_configs={"B": RelayConfig(name="Side Gate")},
     )
     coordinator.async_set_updated_data(coordinator.data)

@@ -11,6 +11,7 @@ from datetime import timedelta
 from time import monotonic
 from typing import Any
 
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import (
@@ -24,10 +25,18 @@ from pylocal_akuvox import (
     AkuvoxDeviceError,
     AkuvoxError,
     AkuvoxParseError,
+    AkuvoxUnsupportedError,
+    Capability,
+    DeviceCapabilities,
     DeviceInfo,
     User,
 )
 
+from .capability_support import (
+    async_clear_unsupported_capability_issue,
+    async_report_unsupported_capability,
+    build_default_capabilities,
+)
 from .const import (
     CONFIG_KEY_LOCATION,
     DEFAULT_SCAN_INTERVAL,
@@ -48,6 +57,7 @@ class AkuvoxCoordinatorData:
     device_info: DeviceInfo
     relay_status: dict[str, Any]
     device_name: str = ""
+    capabilities: DeviceCapabilities = field(default_factory=build_default_capabilities)
     relay_configs: dict[str, RelayConfig] = field(default_factory=dict)
     users: list[User] = field(default_factory=list)
 
@@ -76,6 +86,7 @@ class AkuvoxDataUpdateCoordinator(
             update_interval=timedelta(seconds=DEFAULT_SCAN_INTERVAL),
         )
         self.device = device
+        self.config_entry: ConfigEntry | None = None
         self._cached_device_info: DeviceInfo | None = None
         self._cached_device_name: str | None = None
         self._cached_relay_configs: dict[str, RelayConfig] | None = None
@@ -119,6 +130,33 @@ class AkuvoxDataUpdateCoordinator(
         if self._cached_device_name is None:
             return True
         return bool(self._was_unavailable)
+
+    def _get_capabilities(self) -> DeviceCapabilities:
+        """Return the current device capability snapshot."""
+        missing = object()
+        capabilities = getattr(self.device, "capabilities", missing)
+        if capabilities is missing:
+            return build_default_capabilities()
+        if capabilities is None:
+            msg = "Akuvox device capabilities are unavailable outside context"
+            raise UpdateFailed(msg)
+        if isinstance(capabilities, DeviceCapabilities):
+            return capabilities
+        return build_default_capabilities()
+
+    async def _async_report_unsupported(
+        self,
+        err: AkuvoxUnsupportedError,
+        *,
+        context: str,
+    ) -> None:
+        """Report an unsupported capability with coordinator entry context."""
+        await async_report_unsupported_capability(
+            self.hass,
+            getattr(self, "config_entry", None),
+            err,
+            context=context,
+        )
 
     def _fetch_config_from_device_config(
         self,
@@ -210,6 +248,24 @@ class AkuvoxDataUpdateCoordinator(
                 device_config,
                 relay_status,
             )
+            if self.config_entry is not None:
+                await async_clear_unsupported_capability_issue(
+                    self.hass,
+                    self.config_entry,
+                    reason=None,
+                    capability=Capability.DEVICE_CONFIG_GET,
+                )
+        except AkuvoxUnsupportedError as err:
+            await self._async_report_unsupported(
+                err,
+                context="coordinator device config fetch",
+            )
+            self._apply_default_config(
+                relay_status,
+                self._cached_device_info.model
+                if self._cached_device_info is not None
+                else "Unknown",
+            )
         except AkuvoxAuthenticationError as err:
             raise ConfigEntryAuthFailed(
                 f"Authentication failed during config fetch: {err}",
@@ -254,6 +310,19 @@ class AkuvoxDataUpdateCoordinator(
             users = await list_users(page=None)
             self._cached_users = users if users is not None else []
             self._last_user_fetch = monotonic()
+            if self.config_entry is not None:
+                await async_clear_unsupported_capability_issue(
+                    self.hass,
+                    self.config_entry,
+                    reason=None,
+                    capability=Capability.USER_LIST,
+                )
+        except AkuvoxUnsupportedError as err:
+            self._last_user_fetch = monotonic()
+            await self._async_report_unsupported(
+                err,
+                context="coordinator user cache fetch",
+            )
         except AkuvoxError as err:
             _LOGGER.warning(
                 "Failed to fetch users from Akuvox device; keeping cache: %s",
@@ -276,8 +345,22 @@ class AkuvoxDataUpdateCoordinator(
             ConfigEntryAuthFailed: On authentication errors.
 
         """
+        capabilities = self._get_capabilities()
         try:
             relay_status = await self.device.get_relay_status()
+            if self.config_entry is not None:
+                await async_clear_unsupported_capability_issue(
+                    self.hass,
+                    self.config_entry,
+                    reason=None,
+                    capability=Capability.RELAY_STATUS,
+                )
+        except AkuvoxUnsupportedError as err:
+            await self._async_report_unsupported(
+                err,
+                context="coordinator relay status fetch",
+            )
+            relay_status = {}
         except AkuvoxAuthenticationError as err:
             self._was_unavailable = True
             raise ConfigEntryAuthFailed(
@@ -324,5 +407,6 @@ class AkuvoxDataUpdateCoordinator(
             relay_status=relay_status,
             device_name=self._cached_device_name or "",
             relay_configs=self._cached_relay_configs or {},
+            capabilities=capabilities,
             users=list(self._cached_users),
         )

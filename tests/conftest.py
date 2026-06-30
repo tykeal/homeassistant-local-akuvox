@@ -13,7 +13,10 @@ import pytest
 from homeassistant.core import HomeAssistant
 from pylocal_akuvox import (
     AccessSchedule,
+    Capability,
+    CapabilityStatus,
     Contact,
+    DeviceCapabilities,
     DeviceInfo,
     Group,
     User,
@@ -75,6 +78,62 @@ def mock_device_info() -> DeviceInfo:
         mac_address=MOCK_MAC,
         firmware_version=MOCK_FW_VERSION,
         hardware_version=MOCK_HW_VERSION,
+    )
+
+
+@pytest.fixture
+def supported_capabilities() -> DeviceCapabilities:
+    """Return a capability profile with every capability supported."""
+    return DeviceCapabilities(
+        device_class=MOCK_MODEL,
+        firmware_version=MOCK_FW_VERSION,
+        capabilities={
+            capability: CapabilityStatus.SUPPORTED for capability in Capability
+        },
+        field_aliases={},
+        schema_shapes={},
+    )
+
+
+@pytest.fixture
+def unsupported_relay_status_capabilities() -> DeviceCapabilities:
+    """Return a profile with relay status marked unsupported."""
+    return DeviceCapabilities(
+        device_class=MOCK_MODEL,
+        firmware_version=MOCK_FW_VERSION,
+        capabilities={
+            **{capability: CapabilityStatus.SUPPORTED for capability in Capability},
+            Capability.RELAY_STATUS: CapabilityStatus.UNSUPPORTED,
+        },
+        field_aliases={},
+        schema_shapes={},
+    )
+
+
+@pytest.fixture
+def unknown_capabilities() -> DeviceCapabilities:
+    """Return a recognized profile whose capabilities are unknown."""
+    return DeviceCapabilities(
+        device_class=MOCK_MODEL,
+        firmware_version=MOCK_FW_VERSION,
+        capabilities={
+            capability: CapabilityStatus.UNKNOWN for capability in Capability
+        },
+        field_aliases={},
+        schema_shapes={},
+    )
+
+
+@pytest.fixture
+def unrecognized_capabilities() -> DeviceCapabilities:
+    """Return a conservative empty profile for an unrecognized device."""
+    return DeviceCapabilities(
+        device_class="unknown",
+        firmware_version=MOCK_FW_VERSION,
+        capabilities={},
+        field_aliases={},
+        schema_shapes={},
+        notes={"device_not_in_matrix": "Device profile is not curated"},
     )
 
 
@@ -208,6 +267,7 @@ def mock_akuvox_device(
     mock_device_info: DeviceInfo,
     mock_relay_status: dict[str, Any],
     mock_device_config: Any,
+    supported_capabilities: DeviceCapabilities,
 ) -> Generator[AsyncMock]:
     """Return a mocked AkuvoxDevice."""
     with patch(
@@ -222,8 +282,17 @@ def mock_akuvox_device(
         device.get_device_config = AsyncMock(
             return_value=mock_device_config,
         )
+        device.capabilities = None
+        device.attempt_unknown_capability = False
+        device.probe_capabilities = AsyncMock(return_value=supported_capabilities)
         device.trigger_relay = AsyncMock(return_value=None)
-        device.__aenter__ = AsyncMock(return_value=device)
+
+        async def _enter() -> Any:
+            """Enter the mocked v1.0.0 device context."""
+            device.capabilities = supported_capabilities
+            return device
+
+        device.__aenter__ = AsyncMock(side_effect=_enter)
         device.__aexit__ = AsyncMock(return_value=None)
         # Schedule and user CRUD methods
         device.list_schedules = AsyncMock(return_value=[])

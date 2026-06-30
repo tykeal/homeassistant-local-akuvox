@@ -8,11 +8,21 @@ from __future__ import annotations
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
+import pytest
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import issue_registry as ir
+from pylocal_akuvox import (
+    AkuvoxAuthenticationError,
+    AkuvoxConnectionError,
+    AkuvoxUnsupportedError,
+    Capability,
+)
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+from custom_components.local_akuvox import async_setup_entry
 from custom_components.local_akuvox.const import (
     CONF_PASSWORD,
     CONFIG_KEY_LOCATION,
@@ -119,6 +129,88 @@ async def test_setup_fails_on_connection_error(
         )
         device.__aenter__ = AsyncMock(return_value=device)
         device.__aexit__ = AsyncMock(return_value=None)
+
+        await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+    assert entry.state is ConfigEntryState.SETUP_RETRY
+
+
+async def test_setup_entry_maps_entry_auth_failure(
+    hass: HomeAssistant,
+    mock_config_entry_data_none: dict[str, Any],
+) -> None:
+    """Test setup maps context-entry authentication failures to reauth."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data=mock_config_entry_data_none,
+        unique_id=MOCK_MAC,
+    )
+    entry.add_to_hass(hass)
+
+    with patch(
+        "custom_components.local_akuvox.AkuvoxDevice",
+        autospec=True,
+    ) as mock_cls:
+        device = mock_cls.return_value
+        device.__aenter__ = AsyncMock(
+            side_effect=AkuvoxAuthenticationError("bad credentials")
+        )
+
+        with pytest.raises(ConfigEntryAuthFailed):
+            await async_setup_entry(hass, entry)
+
+
+async def test_setup_entry_reports_entry_unsupported(
+    hass: HomeAssistant,
+    mock_config_entry_data_none: dict[str, Any],
+) -> None:
+    """Test setup reports context-entry unsupported capability failures."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data=mock_config_entry_data_none,
+        unique_id=MOCK_MAC,
+    )
+    entry.add_to_hass(hass)
+    err = AkuvoxUnsupportedError(
+        "blocked",
+        reason="device_unrecognized",
+        capability=Capability.DEVICE_CONFIG_GET,
+    )
+
+    with patch(
+        "custom_components.local_akuvox.AkuvoxDevice",
+        autospec=True,
+    ) as mock_cls:
+        device = mock_cls.return_value
+        device.__aenter__ = AsyncMock(side_effect=err)
+
+        await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+    assert entry.state is ConfigEntryState.SETUP_RETRY
+    issue_id = next(iter(hass.data[DOMAIN]["unsupported_capability_issue_ids"]))
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None
+
+
+async def test_setup_entry_maps_entry_connection_failure(
+    hass: HomeAssistant,
+    mock_config_entry_data_none: dict[str, Any],
+) -> None:
+    """Test setup maps other context-entry Akuvox failures to retry."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data=mock_config_entry_data_none,
+        unique_id=MOCK_MAC,
+    )
+    entry.add_to_hass(hass)
+
+    with patch(
+        "custom_components.local_akuvox.AkuvoxDevice",
+        autospec=True,
+    ) as mock_cls:
+        device = mock_cls.return_value
+        device.__aenter__ = AsyncMock(side_effect=AkuvoxConnectionError("offline"))
 
         await hass.config_entries.async_setup(entry.entry_id)
         await hass.async_block_till_done()
@@ -587,3 +679,53 @@ async def test_remove_entry_handles_push_failure(
         # Should not raise — best-effort
         await hass.config_entries.async_remove(entry.entry_id)
         await hass.async_block_till_done()
+
+
+async def test_remove_entry_reports_unsupported_push_failure(
+    hass: HomeAssistant,
+    mock_config_entry_data_webhook: dict[str, Any],
+    mock_relay_status: dict[str, Any],
+    mock_device_info: Any,
+    mock_device_config: Any,
+) -> None:
+    """Test removal reports unsupported webhook disable failures."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data=mock_config_entry_data_webhook,
+        unique_id=MOCK_MAC.lower().replace(":", ""),
+    )
+    entry.add_to_hass(hass)
+
+    with patch(
+        "custom_components.local_akuvox.AkuvoxDevice",
+        autospec=True,
+    ) as mock_cls:
+        device = mock_cls.return_value
+        device.__aenter__ = AsyncMock(return_value=device)
+        device.__aexit__ = AsyncMock(return_value=None)
+        device.get_relay_status = AsyncMock(return_value=mock_relay_status)
+        device.get_info = AsyncMock(return_value=mock_device_info)
+        device.get_device_config = AsyncMock(return_value=mock_device_config)
+
+        await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+    with patch(
+        "custom_components.local_akuvox.AkuvoxDevice",
+        autospec=True,
+    ) as mock_remove_cls:
+        remove_dev = mock_remove_cls.return_value
+        remove_dev.__aenter__ = AsyncMock(return_value=remove_dev)
+        remove_dev.__aexit__ = AsyncMock(return_value=None)
+        remove_dev.set_device_config = AsyncMock(
+            side_effect=AkuvoxUnsupportedError(
+                "blocked",
+                reason="capability_missing",
+                capability=Capability.DEVICE_CONFIG_SET,
+            )
+        )
+
+        await hass.config_entries.async_remove(entry.entry_id)
+        await hass.async_block_till_done()
+
+    assert DOMAIN not in hass.data

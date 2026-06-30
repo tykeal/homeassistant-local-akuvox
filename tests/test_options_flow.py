@@ -15,6 +15,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.local_akuvox.const import (
     AUTH_BASIC,
     AUTH_NONE,
+    CONF_ATTEMPT_UNKNOWN_CAPABILITY,
     CONF_AUTH_METHOD,
     CONF_HOST,
     CONF_PASSWORD,
@@ -145,3 +146,40 @@ async def test_options_webhook_enable_uses_basic_auth(
     auth = mock_cls.call_args.kwargs["auth"]
     assert auth.username == "admin"
     assert auth.password == mock_config_entry_data_basic[CONF_PASSWORD]
+
+
+async def test_options_flow_prefills_and_saves_attempt_unknown(
+    hass: HomeAssistant,
+    mock_config_entry_data_none: dict[str, Any],
+) -> None:
+    """Test options flow preserves and saves the unknown-capability opt-in."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={
+            **mock_config_entry_data_none,
+            CONF_ATTEMPT_UNKNOWN_CAPABILITY: True,
+        },
+        unique_id=MOCK_MAC,
+    )
+    entry.add_to_hass(hass)
+
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    schema = result["data_schema"]
+    assert schema is not None
+    assert schema({})[CONF_ATTEMPT_UNKNOWN_CAPABILITY] is True
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        user_input={
+            CONF_HOST: MOCK_HOST,
+            CONF_USE_SSL: False,
+            CONF_VERIFY_SSL: True,
+            CONF_AUTH_METHOD: AUTH_NONE,
+            CONF_USERNAME: "",
+            CONF_PASSWORD: "",
+            CONF_ATTEMPT_UNKNOWN_CAPABILITY: False,
+            CONF_WEBHOOK_ENABLED: False,
+        },
+    )
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert entry.options[CONF_ATTEMPT_UNKNOWN_CAPABILITY] is False

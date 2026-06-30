@@ -177,21 +177,21 @@ repos:
         additional_dependencies:
           - setuptools
 
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: d2823d321df3af8f878f7ee3414dc94d037145b9  # frozen: v2.1.0
+  - repo: local
     hooks:
       - id: mypy
+        name: mypy
         verbose: true
-        language_version: python3.13
-        args: ["--show-error-codes", "--install-types", "--non-interactive"]
-        additional_dependencies:
-          - "homeassistant>=2026.2.0"
-          - "pytest"
-          - "pylocal-akuvox>=0.3.0"
-          - "types-pexpect"
-          - "types-pygments"
-          - "types-pytz"
-          - "types-requests"
+        language: system
+        entry: uv run mypy custom_components tests
+        files: >-
+          (?x)^(
+          (custom_components|tests)/.*\.py
+          |pyproject\.toml
+          |uv\.lock
+          |\.pre-commit-config\.yaml
+          )$
+        pass_filenames: false
 
   # - repo: local
   #   hooks:

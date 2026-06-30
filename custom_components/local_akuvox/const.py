@@ -104,6 +104,12 @@ CONF_USERNAME: Final = "username"
 CONF_PASSWORD: Final = "password"  # noqa: S105
 CONF_REQUEST_DELAY: Final = "request_delay"
 DEFAULT_REQUEST_DELAY: Final = 0.25
+CONF_ATTEMPT_UNKNOWN_CAPABILITY: Final = "attempt_unknown_capability"
+DEFAULT_ATTEMPT_UNKNOWN_CAPABILITY: Final = False
+
+# Repairs issue identifiers
+REPAIR_UNSUPPORTED_CAPABILITY_PREFIX: Final = "unsupported"
+REPAIR_UNSUPPORTED_CAPABILITY_TRANSLATION_KEY: Final = "unsupported_capability"
 
 # Auth mode constants
 AUTH_NONE: Final = "none"
