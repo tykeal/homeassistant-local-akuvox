@@ -561,12 +561,11 @@ async def test_relay_event_without_device_registry_entry(
 
     assert response is not None
     assert response.status == 200
+    assert len(events) == 1
     assert events[0].data["device_id"] is None
 
 
-async def test_refresh_user_cache_timeout_clears_guard(
-    hass: HomeAssistant,
-) -> None:
+async def test_refresh_user_cache_timeout_clears_guard() -> None:
     """Test user cache refresh timeout clears in-flight state."""
     coordinator = MagicMock()
     coordinator.device.list_users = AsyncMock(side_effect=TimeoutError)
@@ -579,9 +578,7 @@ async def test_refresh_user_cache_timeout_clears_guard(
     coordinator.update_user_cache.assert_not_called()
 
 
-async def test_refresh_user_cache_error_clears_guard(
-    hass: HomeAssistant,
-) -> None:
+async def test_refresh_user_cache_error_clears_guard() -> None:
     """Test user cache refresh errors clear in-flight state."""
     coordinator = MagicMock()
     coordinator.device.list_users = AsyncMock(side_effect=RuntimeError("boom"))
@@ -625,6 +622,7 @@ async def test_unknown_event_truncates_long_event_name(
 
     assert response is not None
     assert response.status == 200
+    assert len(events) == 1
     assert events[0].data["event_type"] == f"unknown_{'x' * 32}"
 
 
