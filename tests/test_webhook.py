@@ -13,14 +13,19 @@ from urllib.parse import urlencode
 from aiohttp import web
 from aiohttp.test_utils import make_mocked_request
 from homeassistant.core import HomeAssistant
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.local_akuvox.const import (
+    CONF_WEBHOOK_ID,
     DOMAIN,
     EVENT_WEBHOOK_RECEIVED,
 )
 from custom_components.local_akuvox.webhook import (
     _refresh_in_flight,
+    _refresh_user_cache,
     async_handle_webhook,
+    async_register_webhook,
+    build_action_urls,
 )
 from tests.conftest import MOCK_WEBHOOK_ID
 
@@ -523,3 +528,157 @@ async def test_raw_pin_never_in_payload(
     assert len(events) == 1
     event_str = str(events[0].data)
     assert "1234" not in event_str
+
+
+async def test_relay_event_without_device_registry_entry(
+    hass: HomeAssistant,
+) -> None:
+    """Test webhook events use None device_id when registry has no device."""
+    coordinator = MagicMock()
+    coordinator.async_refresh = AsyncMock()
+    coordinator.get_user_by_pin = MagicMock(return_value=None)
+    hass.data.setdefault(DOMAIN, {})
+    hass.data[DOMAIN]["webhook_registry"] = {
+        MOCK_WEBHOOK_ID: "test_entry_id",
+    }
+    hass.data[DOMAIN]["test_entry_id"] = coordinator
+
+    with patch(
+        "custom_components.local_akuvox.webhook.dr.async_entries_for_config_entry",
+        return_value=[],
+    ):
+        events: list[Any] = []
+        hass.bus.async_listen(
+            EVENT_WEBHOOK_RECEIVED,
+            lambda event: events.append(event),
+        )
+        response = await async_handle_webhook(
+            hass,
+            MOCK_WEBHOOK_ID,
+            _make_request({"event": "relay_a_triggered"}),
+        )
+        await hass.async_block_till_done()
+
+    assert response is not None
+    assert response.status == 200
+    assert events[0].data["device_id"] is None
+
+
+async def test_refresh_user_cache_timeout_clears_guard(
+    hass: HomeAssistant,
+) -> None:
+    """Test user cache refresh timeout clears in-flight state."""
+    coordinator = MagicMock()
+    coordinator.device.list_users = AsyncMock(side_effect=TimeoutError)
+    coordinator.update_user_cache = MagicMock()
+    _refresh_in_flight.add("entry_timeout")
+
+    await _refresh_user_cache(coordinator, "entry_timeout")
+
+    assert "entry_timeout" not in _refresh_in_flight
+    coordinator.update_user_cache.assert_not_called()
+
+
+async def test_refresh_user_cache_error_clears_guard(
+    hass: HomeAssistant,
+) -> None:
+    """Test user cache refresh errors clear in-flight state."""
+    coordinator = MagicMock()
+    coordinator.device.list_users = AsyncMock(side_effect=RuntimeError("boom"))
+    coordinator.update_user_cache = MagicMock()
+    _refresh_in_flight.add("entry_error")
+
+    await _refresh_user_cache(coordinator, "entry_error")
+
+    assert "entry_error" not in _refresh_in_flight
+    coordinator.update_user_cache.assert_not_called()
+
+
+async def test_unknown_event_truncates_long_event_name(
+    hass: HomeAssistant,
+) -> None:
+    """Test very long unknown events are accepted and normalized."""
+    coordinator = MagicMock()
+    coordinator.async_refresh = AsyncMock()
+    coordinator.get_user_by_pin = MagicMock(return_value=None)
+    hass.data.setdefault(DOMAIN, {})
+    hass.data[DOMAIN]["webhook_registry"] = {
+        MOCK_WEBHOOK_ID: "test_entry_id",
+    }
+    hass.data[DOMAIN]["test_entry_id"] = coordinator
+
+    with patch(
+        "custom_components.local_akuvox.webhook.dr.async_entries_for_config_entry",
+        return_value=[],
+    ):
+        events: list[Any] = []
+        hass.bus.async_listen(
+            EVENT_WEBHOOK_RECEIVED,
+            lambda event: events.append(event),
+        )
+        response = await async_handle_webhook(
+            hass,
+            MOCK_WEBHOOK_ID,
+            _make_request({"event": "X" * 100}),
+        )
+        await hass.async_block_till_done()
+
+    assert response is not None
+    assert response.status == 200
+    assert events[0].data["event_type"] == f"unknown_{'x' * 32}"
+
+
+def test_register_webhook_without_id_returns(
+    hass: HomeAssistant,
+) -> None:
+    """Test webhook registration is skipped when no id exists."""
+    entry = MockConfigEntry(domain=DOMAIN, data={}, unique_id="entry")
+    hass.data.setdefault(DOMAIN, {})
+
+    with patch("custom_components.local_akuvox.webhook.async_register") as register:
+        async_register_webhook(hass, entry)
+
+    register.assert_not_called()
+
+
+def test_register_webhook_reregisters_duplicate(
+    hass: HomeAssistant,
+) -> None:
+    """Test duplicate webhook registration unregisters then retries."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={CONF_WEBHOOK_ID: MOCK_WEBHOOK_ID},
+        unique_id="entry",
+    )
+    entry.add_to_hass(hass)
+    hass.data.setdefault(DOMAIN, {})
+
+    with (
+        patch(
+            "custom_components.local_akuvox.webhook.async_register",
+            side_effect=[ValueError, None],
+        ) as register,
+        patch("custom_components.local_akuvox.webhook.async_unregister") as unregister,
+    ):
+        async_register_webhook(hass, entry, device_name="Front Door")
+
+    assert register.call_count == 2
+    unregister.assert_called_once_with(hass, MOCK_WEBHOOK_ID)
+    assert hass.data[DOMAIN]["webhook_registry"][MOCK_WEBHOOK_ID] == entry.entry_id
+
+
+def test_build_action_urls_reraises_generation_error(
+    hass: HomeAssistant,
+) -> None:
+    """Test URL generation failures are re-raised."""
+    with patch(
+        "custom_components.local_akuvox.webhook.async_generate_url",
+        side_effect=RuntimeError("no url"),
+    ):
+        try:
+            build_action_urls(hass, MOCK_WEBHOOK_ID)
+        except RuntimeError as err:
+            assert str(err) == "no url"
+        else:
+            msg = "Expected webhook URL generation to fail"
+            raise AssertionError(msg)
