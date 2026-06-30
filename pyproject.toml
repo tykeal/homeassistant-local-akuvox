@@ -118,6 +118,14 @@ verbose = 2
 asyncio_mode = "auto"
 testpaths = ["tests"]
 
+[tool.coverage.run]
+branch = false
+source = ["custom_components.local_akuvox"]
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 100
+
 [tool.hatch.version]
 source = "vcs"
 fallback-version = "0.0.0"
