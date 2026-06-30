@@ -13,7 +13,11 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.local_akuvox.const import CONFIG_KEY_LOCATION, DOMAIN
+from custom_components.local_akuvox.const import (
+    CONF_PASSWORD,
+    CONFIG_KEY_LOCATION,
+    DOMAIN,
+)
 from tests.conftest import MOCK_MAC
 
 
@@ -120,6 +124,52 @@ async def test_setup_fails_on_connection_error(
         await hass.async_block_till_done()
 
     assert entry.state is ConfigEntryState.SETUP_RETRY
+
+
+async def test_create_device_uses_basic_auth_credentials(
+    mock_config_entry_data_basic: dict[str, Any],
+) -> None:
+    """Test device creation passes basic auth credentials to library."""
+    from custom_components.local_akuvox import _create_device
+
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data=mock_config_entry_data_basic,
+        unique_id=MOCK_MAC,
+    )
+
+    with patch("custom_components.local_akuvox.AkuvoxDevice") as mock_cls:
+        _create_device(entry)
+
+    auth = mock_cls.call_args.kwargs["auth"]
+    assert auth.username == "admin"
+    assert auth.password == mock_config_entry_data_basic[CONF_PASSWORD]
+
+
+async def test_setup_entry_cleans_up_when_forwarding_fails(
+    hass: HomeAssistant,
+    mock_config_entry_data_none: dict[str, Any],
+    mock_akuvox_device: AsyncMock,
+) -> None:
+    """Test setup failure during platform forwarding unloads resources."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data=mock_config_entry_data_none,
+        unique_id=MOCK_MAC,
+    )
+    entry.add_to_hass(hass)
+
+    with patch.object(
+        hass.config_entries,
+        "async_forward_entry_setups",
+        side_effect=RuntimeError("platform failed"),
+    ):
+        await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+    assert entry.state is ConfigEntryState.SETUP_ERROR
+    assert DOMAIN not in hass.data
+    mock_akuvox_device.__aexit__.assert_awaited_once_with(None, None, None)
 
 
 # ── T018: Device name from config location ──────────────────────
