@@ -126,7 +126,7 @@ async def test_setup_fails_on_connection_error(
     assert entry.state is ConfigEntryState.SETUP_RETRY
 
 
-async def test_create_device_uses_basic_auth_credentials(
+def test_create_device_uses_basic_auth_credentials(
     mock_config_entry_data_basic: dict[str, Any],
 ) -> None:
     """Test device creation passes basic auth credentials to library."""
