@@ -5,6 +5,8 @@
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock
 
@@ -32,6 +34,13 @@ from custom_components.local_akuvox.capability_support import (
 from custom_components.local_akuvox.const import (
     CONF_ATTEMPT_UNKNOWN_CAPABILITY,
     DOMAIN,
+)
+
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+_UPSTREAM_GUIDANCE = (
+    "Report this device upstream by opening a new-device issue at pylocal-akuvox "
+    "and attaching this integration's diagnostics download so it can be added "
+    "to the capability matrix."
 )
 
 
@@ -121,6 +130,23 @@ def test_default_capabilities_are_conservative() -> None:
     )
 
 
+def test_unsupported_issue_translation_guidance_in_sync() -> None:
+    """Test unsupported capability repair guidance is translated consistently."""
+    descriptions: list[str] = []
+
+    for relative_path in (
+        "custom_components/local_akuvox/strings.json",
+        "custom_components/local_akuvox/translations/en.json",
+    ):
+        data = json.loads((_REPO_ROOT / relative_path).read_text(encoding="utf-8"))
+        description = data["issues"]["unsupported_capability"]["description"]
+        assert _UPSTREAM_GUIDANCE in description
+        assert "{mitigation}" not in description
+        descriptions.append(description)
+
+    assert descriptions[0] == descriptions[1]
+
+
 async def test_report_and_clear_unsupported_issue(
     hass: HomeAssistant,
 ) -> None:
@@ -143,7 +169,13 @@ async def test_report_and_clear_unsupported_issue(
     issue_ids = hass.data[DOMAIN]["unsupported_capability_issue_ids"]
     assert len(issue_ids) == 1
     issue_id = next(iter(issue_ids))
-    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None
+    issue = ir.async_get(hass).async_get_issue(DOMAIN, issue_id)
+    assert issue is not None
+    assert issue.learn_more_url == (
+        "https://github.com/tykeal/pylocal-akuvox/issues/new?template=new_device.yml"
+    )
+    assert issue.translation_placeholders is not None
+    assert "mitigation" not in issue.translation_placeholders
 
     await async_report_unsupported_capability(
         hass,

@@ -482,7 +482,7 @@
   "issues": {
     "unsupported_capability": {
       "title": "Akuvox capability is unsupported",
-      "description": "{entry_title} could not complete {context}. Reason: {reason}; capability: {capability}; device class: {device_class}. {mitigation}"
+      "description": "{entry_title} could not complete {context}. Reason: {reason}; capability: {capability}; device class: {device_class}. Report this device upstream by opening a new-device issue at pylocal-akuvox and attaching this integration's diagnostics download so it can be added to the capability matrix. You can also enable Attempt unknown capabilities to try UNKNOWN capabilities; confirmed UNSUPPORTED capabilities remain blocked."
     }
   }
 }
