@@ -1,0 +1,51 @@
+# SPDX-FileCopyrightText: 2026 Andrew Grimberg <tykeal@bardicgrove.org>
+# SPDX-License-Identifier: Apache-2.0
+
+name: Feature request
+description: Suggest a Home Assistant integration enhancement
+title: "[Feature]: "
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting an improvement to the local-akuvox Home
+        Assistant integration. Please describe the problem and the outcome you
+        would like.
+
+        Requests for unsupported Akuvox devices or missing device capabilities
+        belong in the upstream pylocal-akuvox new-device template linked from
+        the issue chooser.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / motivation
+      description: What problem does this solve, and who is affected?
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: Describe the Home Assistant behavior or capability you want.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: What other approaches, automations, or workarounds have you considered?
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: >-
+        Include screenshots, device models, diagnostics, YAML snippets,
+        automations, or Home Assistant logs if relevant.
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Confirmation
+      options:
+        - label: I searched existing issues and this is not a duplicate
+          required: true

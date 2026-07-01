@@ -1,0 +1,89 @@
+# SPDX-FileCopyrightText: 2026 Andrew Grimberg <tykeal@bardicgrove.org>
+# SPDX-License-Identifier: Apache-2.0
+
+name: Bug report
+description: Report a defect in the Home Assistant integration
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a defect in the local-akuvox Home Assistant
+        integration. Please search existing issues before opening a new one.
+
+        If your Akuvox device is unsupported or missing capabilities, use the
+        upstream pylocal-akuvox new-device template linked from the issue
+        chooser instead.
+  - type: input
+    id: home-assistant-version
+    attributes:
+      label: Home Assistant version
+      description: The Home Assistant version running this integration.
+      placeholder: 2026.6.0
+    validations:
+      required: true
+  - type: input
+    id: integration-version
+    attributes:
+      label: Integration version
+      description: The local-akuvox version installed by HACS.
+      placeholder: 0.0.0
+    validations:
+      required: true
+  - type: input
+    id: device-model-firmware
+    attributes:
+      label: Device model & firmware
+      description: >-
+        Include the model, firmware, and hardware version if available. The
+        integration diagnostics download includes a device_info block with
+        model, firmware, and hardware version: Settings → Devices & Services →
+        the Akuvox device → three-dot menu → Download diagnostics.
+      placeholder: X915S / 2915.30.10.114 / hardware version
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: Describe the observed behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: Expected behavior
+      description: Describe what you expected to happen instead.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Provide the smallest set of steps that reproduces the issue.
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs / traceback
+      description: Paste relevant logs after removing credentials, tokens, and passwords.
+      render: text
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics download
+      description: >-
+        Attach the integration diagnostics download if possible. In Home
+        Assistant, open Settings → Devices & Services → the Akuvox device →
+        three-dot menu → Download diagnostics. Remove sensitive data before
+        sharing.
+      render: text
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Confirmations
+      options:
+        - label: I searched existing issues and this is not a duplicate
+          required: true
+        - label: I removed sensitive data from logs and diagnostics
+          required: true
