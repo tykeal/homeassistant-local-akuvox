@@ -44,6 +44,25 @@ def _safe_entry_data(entry: ConfigEntry) -> dict[str, Any]:
     }
 
 
+def _safe_device_info(
+    coordinator: AkuvoxDataUpdateCoordinator | None,
+) -> dict[str, Any]:
+    """Return non-sensitive cached device information for diagnostics."""
+    if coordinator is None or coordinator.data is None:
+        return {}
+    device_info = coordinator.data.device_info
+    return cast(
+        dict[str, Any],
+        sanitize_value(
+            {
+                "model": device_info.model,
+                "firmware_version": device_info.firmware_version,
+                "hardware_version": device_info.hardware_version,
+            }
+        ),
+    )
+
+
 def _safe_error(err: Exception) -> dict[str, str]:
     """Return a sanitized error summary for diagnostics."""
     data = {
@@ -99,6 +118,7 @@ async def async_get_config_entry_diagnostics(
     )
     return {
         "entry": _safe_entry_data(entry),
+        "device_info": _safe_device_info(coordinator),
         "current_capabilities": current,
         "probe": await _async_probe_capabilities(hass, entry),
     }
