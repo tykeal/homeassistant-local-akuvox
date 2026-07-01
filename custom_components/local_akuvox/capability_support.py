@@ -194,6 +194,10 @@ async def async_report_unsupported_capability(
         is_fixable=False,
         is_persistent=True,
         severity=ir.IssueSeverity.WARNING,
+        learn_more_url=(
+            "https://github.com/tykeal/pylocal-akuvox/issues/new?"
+            "template=new_device.yml"
+        ),
         translation_key=REPAIR_UNSUPPORTED_CAPABILITY_TRANSLATION_KEY,
         translation_placeholders={
             "entry_title": entry_title,
@@ -202,12 +206,6 @@ async def async_report_unsupported_capability(
             "reason": reason,
             "capability": capability,
             "device_class": device_class,
-            "mitigation": (
-                "Enable Attempt unknown capabilities only for UNKNOWN "
-                "capabilities, or share diagnostics so the device can be "
-                "added to the upstream matrix. Confirmed UNSUPPORTED "
-                "capabilities remain blocked."
-            ),
         },
     )
 
