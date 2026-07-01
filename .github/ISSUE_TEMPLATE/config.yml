@@ -10,5 +10,5 @@ contact_links:
       pylocal-akuvox, where the capability matrix lives. You can attach this
       integration's diagnostics download as capability evidence.
   - name: Home Assistant community support
-    url: "https://community.home-assistant.io/"
+    url: "https://community.home-assistant.io/t/local-akuvox-intercom-control/993530"
     about: Ask general Home Assistant usage, configuration, or troubleshooting questions.
