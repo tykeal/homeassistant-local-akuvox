@@ -32,9 +32,17 @@ from custom_components.local_akuvox.coordinator import (
     AkuvoxDataUpdateCoordinator,
 )
 from custom_components.local_akuvox.diagnostics import (
+    _safe_device_info,
     async_get_config_entry_diagnostics,
 )
-from tests.conftest import MOCK_HOST, MOCK_MAC, MOCK_WEBHOOK_ID
+from tests.conftest import (
+    MOCK_FW_VERSION,
+    MOCK_HOST,
+    MOCK_HW_VERSION,
+    MOCK_MAC,
+    MOCK_MODEL,
+    MOCK_WEBHOOK_ID,
+)
 
 
 async def test_diagnostics_sanitizes_entry_and_current_capabilities(
@@ -78,8 +86,25 @@ async def test_diagnostics_sanitizes_entry_and_current_capabilities(
     assert result["entry"]["host"] == MOCK_HOST
     assert CONF_PASSWORD not in str(result)
     assert MOCK_WEBHOOK_ID not in str(result)
+    assert result["device_info"] == {
+        "model": MOCK_MODEL,
+        "firmware_version": MOCK_FW_VERSION,
+        "hardware_version": MOCK_HW_VERSION,
+    }
+    assert "mac_address" not in result["device_info"]
+    assert MOCK_MAC not in str(result["device_info"])
     assert "user.list" in result["current_capabilities"]["capabilities"]
     device.probe_capabilities.assert_awaited_once_with(timeout=5.0)
+
+
+def test_safe_device_info_handles_missing_coordinator_data(
+    hass: HomeAssistant,
+) -> None:
+    """Test safe device info handles missing coordinator data."""
+    coordinator = AkuvoxDataUpdateCoordinator(hass=hass, device=AsyncMock())
+
+    assert _safe_device_info(None) == {}
+    assert _safe_device_info(coordinator) == {}
 
 
 async def test_diagnostics_records_safe_probe_error(
