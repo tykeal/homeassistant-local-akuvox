@@ -11,12 +11,23 @@ from typing import Any
 # aislop-ignore-next-line ai-slop/hallucinated-import -- provided by homeassistant
 import voluptuous as vol  # provided by homeassistant
 from homeassistant.config_entries import ConfigEntry, OptionsFlow
-from pylocal_akuvox import AkuvoxDevice, AuthConfig, AuthMethod
+from pylocal_akuvox import (
+    AkuvoxDevice,
+    AkuvoxUnsupportedError,
+    AuthConfig,
+    AuthMethod,
+)
 
+from .capability_support import (
+    apply_capability_options,
+    async_report_unsupported_capability,
+    get_mapping_attempt_unknown,
+)
 from .const import (
     AUTH_BASIC,
     AUTH_DIGEST,
     AUTH_NONE,
+    CONF_ATTEMPT_UNKNOWN_CAPABILITY,
     CONF_AUTH_METHOD,
     CONF_HOST,
     CONF_PASSWORD,
@@ -26,6 +37,7 @@ from .const import (
     CONF_VERIFY_SSL,
     CONF_WEBHOOK_ENABLED,
     CONF_WEBHOOK_ID,
+    DEFAULT_ATTEMPT_UNKNOWN_CAPABILITY,
     DEFAULT_REQUEST_DELAY,
     get_auth_method_map,
 )
@@ -200,7 +212,19 @@ class AkuvoxOptionsFlow(OptionsFlow):
 
         try:
             async with device:
+                apply_capability_options(
+                    device,
+                    attempt_unknown=get_mapping_attempt_unknown(effective),
+                )
                 await device.set_device_config(payload)  # type: ignore[attr-defined]
+        except AkuvoxUnsupportedError as err:
+            await async_report_unsupported_capability(
+                self.hass,
+                self._config_entry,
+                err,
+                context="options webhook change",
+            )
+            return "webhook_push_failed"
         except Exception:
             return "webhook_push_failed"
 
@@ -251,6 +275,15 @@ class AkuvoxOptionsFlow(OptionsFlow):
                     CONF_REQUEST_DELAY,
                     default=current.get(CONF_REQUEST_DELAY, DEFAULT_REQUEST_DELAY),
                 ): vol.All(vol.Coerce(float), vol.Range(min=0.0, max=5.0)),
+                vol.Required(
+                    CONF_ATTEMPT_UNKNOWN_CAPABILITY,
+                    default=bool(
+                        current.get(
+                            CONF_ATTEMPT_UNKNOWN_CAPABILITY,
+                            DEFAULT_ATTEMPT_UNKNOWN_CAPABILITY,
+                        )
+                    ),
+                ): bool,
                 vol.Required(
                     CONF_WEBHOOK_ENABLED,
                     default=current.get(CONF_WEBHOOK_ENABLED, False),

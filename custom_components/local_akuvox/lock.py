@@ -23,10 +23,18 @@ from homeassistant.helpers.event import async_call_later
 from pylocal_akuvox import (
     AccessSchedule,
     AkuvoxError,
+    AkuvoxUnsupportedError,
     AkuvoxValidationError,
+    Capability,
+    CapabilityStatus,
     User,
 )
 
+from .capability_support import (
+    async_report_unsupported_capability,
+    get_effective_attempt_unknown,
+    is_capability_usable,
+)
 from .const import (
     DEFAULT_HOLD_DELAY_SECONDS,
     DEFAULT_RELAY_MODE,
@@ -217,6 +225,24 @@ async def async_setup_entry(
         _LOGGER.warning("No data available for %s", entry.title)
         return
 
+    try:
+        coordinator.data.capabilities.require(
+            Capability.RELAY_STATUS,
+            allow_unknown=get_effective_attempt_unknown(entry),
+        )
+    except AkuvoxUnsupportedError as err:
+        await async_report_unsupported_capability(
+            hass,
+            entry,
+            err,
+            context="lock setup relay status",
+        )
+        _LOGGER.warning(
+            "Relay status is not usable for %s; no lock entities created",
+            entry.title,
+        )
+        return
+
     relay_status = coordinator.data.relay_status
     entities: list[AkuvoxLockEntity] = []
 
@@ -270,6 +296,63 @@ class AkuvoxLockEntity(AkuvoxEntity, LockEntity):
         self._delayed_refresh_cancel: CALLBACK_TYPE | None = None
 
     @property
+    def available(self) -> bool:
+        """Return whether the relay lock is available."""
+        return bool(
+            super().available
+            and self._is_capability_usable(Capability.RELAY_STATUS)
+            and self._is_capability_usable(Capability.RELAY_TRIGGER_API)
+        )
+
+    def _attempt_unknown(self) -> bool:
+        """Return whether this entry attempts unknown capabilities."""
+        entry = getattr(self.coordinator, "config_entry", None)
+        if entry is None:
+            return False
+        return get_effective_attempt_unknown(entry)
+
+    def _is_capability_usable(self, capability: Capability) -> bool:
+        """Return whether a capability is usable for this entity."""
+        return is_capability_usable(
+            self.coordinator.data.capabilities,
+            capability,
+            attempt_unknown=self._attempt_unknown(),
+        )
+
+    def _relay_adapter(self) -> Capability | None:
+        """Return the relay trigger adapter to pass to the library."""
+        status = self.coordinator.data.capabilities.status_of(
+            Capability.RELAY_TRIGGER_API
+        )
+        if status is CapabilityStatus.UNKNOWN and self._attempt_unknown():
+            return Capability.RELAY_TRIGGER_API
+        return None
+
+    async def _async_require_capability(self, capability: Capability) -> None:
+        """Raise a controlled error if a capability is not usable."""
+        try:
+            self.coordinator.data.capabilities.require(
+                capability,
+                allow_unknown=self._attempt_unknown(),
+            )
+        except AkuvoxUnsupportedError as err:
+            await self._async_handle_unsupported_error(err)
+
+    async def _async_handle_unsupported_error(
+        self,
+        err: AkuvoxUnsupportedError,
+    ) -> None:
+        """Report an unsupported error and raise a Home Assistant error."""
+        await async_report_unsupported_capability(
+            self.hass,
+            getattr(self.coordinator, "config_entry", None),
+            err,
+            context=f"lock entity {self.entity_id or self._relay_key}",
+            issue_scope=self.entity_id or self._relay_key,
+        )
+        raise HomeAssistantError(f"Unsupported Akuvox capability: {err}") from err
+
+    @property
     def is_locked(self) -> bool | None:
         """Return true if the relay is closed/inactive/0 (locked).
 
@@ -316,6 +399,7 @@ class AkuvoxLockEntity(AkuvoxEntity, LockEntity):
             HomeAssistantError: If device communication fails.
 
         """
+        await self._async_require_capability(Capability.RELAY_TRIGGER_API)
         letter = chr(ord("A") + self._relay_number - 1)
         relay_cfg = self.coordinator.data.relay_configs.get(letter)
         relay_mode = relay_cfg.relay_mode if relay_cfg else DEFAULT_RELAY_MODE
@@ -352,7 +436,14 @@ class AkuvoxLockEntity(AkuvoxEntity, LockEntity):
                 delay=hold_delay,
                 level=relay_type,
                 mode=relay_mode,
+                **(
+                    {"adapter": self._relay_adapter()}
+                    if self._relay_adapter() is not None
+                    else {}
+                ),
             )
+        except AkuvoxUnsupportedError as err:
+            await self._async_handle_unsupported_error(err)
         except AkuvoxError as err:
             raise HomeAssistantError(
                 f"Failed to lock relay {self._relay_number}: {err}"
@@ -389,6 +480,7 @@ class AkuvoxLockEntity(AkuvoxEntity, LockEntity):
             HomeAssistantError: If the device communication fails.
 
         """
+        await self._async_require_capability(Capability.RELAY_TRIGGER_API)
         letter = chr(ord("A") + self._relay_number - 1)
         relay_cfg = self.coordinator.data.relay_configs.get(letter)
         relay_mode = relay_cfg.relay_mode if relay_cfg else DEFAULT_RELAY_MODE
@@ -417,7 +509,14 @@ class AkuvoxLockEntity(AkuvoxEntity, LockEntity):
                     delay=0,
                     level=relay_type,
                     mode=0,
+                    **(
+                        {"adapter": self._relay_adapter()}
+                        if self._relay_adapter() is not None
+                        else {}
+                    ),
                 )
+            except AkuvoxUnsupportedError as err:
+                await self._async_handle_unsupported_error(err)
             except AkuvoxError as err:
                 raise HomeAssistantError(
                     f"Failed to unlock relay {self._relay_number}: {err}"
@@ -436,7 +535,14 @@ class AkuvoxLockEntity(AkuvoxEntity, LockEntity):
                 delay=hold_delay,
                 level=relay_type,
                 mode=0,
+                **(
+                    {"adapter": self._relay_adapter()}
+                    if self._relay_adapter() is not None
+                    else {}
+                ),
             )
+        except AkuvoxUnsupportedError as err:
+            await self._async_handle_unsupported_error(err)
         except AkuvoxError as err:
             raise HomeAssistantError(
                 f"Failed to unlock relay {self._relay_number}: {err}"
@@ -554,6 +660,8 @@ class AkuvoxLockEntity(AkuvoxEntity, LockEntity):
             raise ServiceValidationError(
                 f"list_schedules: {err}",
             ) from err
+        except AkuvoxUnsupportedError as err:
+            await self._async_handle_unsupported_error(err)
         except AkuvoxError as err:
             raise HomeAssistantError(
                 f"list_schedules failed: {err}",
@@ -590,6 +698,8 @@ class AkuvoxLockEntity(AkuvoxEntity, LockEntity):
             raise ServiceValidationError(
                 f"list_users: {err}",
             ) from err
+        except AkuvoxUnsupportedError as err:
+            await self._async_handle_unsupported_error(err)
         except AkuvoxError as err:
             raise HomeAssistantError(
                 f"list_users failed: {err}",
@@ -651,6 +761,8 @@ class AkuvoxLockEntity(AkuvoxEntity, LockEntity):
             raise ServiceValidationError(
                 f"add_schedule: {err}",
             ) from err
+        except AkuvoxUnsupportedError as err:
+            await self._async_handle_unsupported_error(err)
         except AkuvoxError as err:
             raise HomeAssistantError(
                 f"add_schedule failed: {err}",
@@ -689,6 +801,8 @@ class AkuvoxLockEntity(AkuvoxEntity, LockEntity):
             raise ServiceValidationError(
                 f"{action}_schedule: {err}",
             ) from err
+        except AkuvoxUnsupportedError as err:
+            await self._async_handle_unsupported_error(err)
         except AkuvoxError as err:
             raise HomeAssistantError(
                 f"{action}_schedule: failed to fetch schedules: {err}",
@@ -765,6 +879,8 @@ class AkuvoxLockEntity(AkuvoxEntity, LockEntity):
             raise ServiceValidationError(
                 f"modify_schedule: {err}",
             ) from err
+        except AkuvoxUnsupportedError as err:
+            await self._async_handle_unsupported_error(err)
         except AkuvoxError as err:
             raise HomeAssistantError(
                 f"modify_schedule failed: {err}",
@@ -804,6 +920,8 @@ class AkuvoxLockEntity(AkuvoxEntity, LockEntity):
             raise ServiceValidationError(
                 f"delete_schedule: {err}",
             ) from err
+        except AkuvoxUnsupportedError as err:
+            await self._async_handle_unsupported_error(err)
         except AkuvoxError as err:
             raise HomeAssistantError(
                 f"delete_schedule failed: {err}",
@@ -868,6 +986,8 @@ class AkuvoxLockEntity(AkuvoxEntity, LockEntity):
             raise ServiceValidationError(
                 f"{service}: {err}",
             ) from err
+        except AkuvoxUnsupportedError as err:
+            await self._async_handle_unsupported_error(err)
         except AkuvoxError as err:
             raise HomeAssistantError(
                 f"{service}: failed to fetch users: {err}",
@@ -916,6 +1036,8 @@ class AkuvoxLockEntity(AkuvoxEntity, LockEntity):
             raise ServiceValidationError(
                 f"Failed to verify schedules: {err}",
             ) from err
+        except AkuvoxUnsupportedError as err:
+            await self._async_handle_unsupported_error(err)
         except AkuvoxError as err:
             raise HomeAssistantError(
                 f"Failed to verify schedules: {err}",
@@ -971,6 +1093,8 @@ class AkuvoxLockEntity(AkuvoxEntity, LockEntity):
             raise ServiceValidationError(
                 f"add_user: {err}",
             ) from err
+        except AkuvoxUnsupportedError as err:
+            await self._async_handle_unsupported_error(err)
         except AkuvoxError as err:
             raise HomeAssistantError(
                 f"add_user failed: {err}",
@@ -1028,6 +1152,8 @@ class AkuvoxLockEntity(AkuvoxEntity, LockEntity):
             raise ServiceValidationError(
                 f"modify_user: {err}",
             ) from err
+        except AkuvoxUnsupportedError as err:
+            await self._async_handle_unsupported_error(err)
         except AkuvoxError as err:
             raise HomeAssistantError(
                 f"modify_user failed: {err}",
@@ -1065,6 +1191,8 @@ class AkuvoxLockEntity(AkuvoxEntity, LockEntity):
             raise ServiceValidationError(
                 f"delete_user: {err}",
             ) from err
+        except AkuvoxUnsupportedError as err:
+            await self._async_handle_unsupported_error(err)
         except AkuvoxError as err:
             raise HomeAssistantError(
                 f"delete_user failed: {err}",
@@ -1136,6 +1264,8 @@ class AkuvoxLockEntity(AkuvoxEntity, LockEntity):
             raise ServiceValidationError(
                 f"add_user_schedule_relay: {err}",
             ) from err
+        except AkuvoxUnsupportedError as err:
+            await self._async_handle_unsupported_error(err)
         except AkuvoxError as err:
             raise HomeAssistantError(
                 f"add_user_schedule_relay failed: {err}",
@@ -1212,6 +1342,8 @@ class AkuvoxLockEntity(AkuvoxEntity, LockEntity):
             raise ServiceValidationError(
                 f"remove_user_schedule_relay: {err}",
             ) from err
+        except AkuvoxUnsupportedError as err:
+            await self._async_handle_unsupported_error(err)
         except AkuvoxError as err:
             raise HomeAssistantError(
                 f"remove_user_schedule_relay failed: {err}",
@@ -1253,6 +1385,8 @@ class AkuvoxLockEntity(AkuvoxEntity, LockEntity):
             raise ServiceValidationError(
                 f"list_contacts: {err}",
             ) from err
+        except AkuvoxUnsupportedError as err:
+            await self._async_handle_unsupported_error(err)
         except AkuvoxError as err:
             raise HomeAssistantError(
                 f"list_contacts failed: {err}",
@@ -1285,6 +1419,8 @@ class AkuvoxLockEntity(AkuvoxEntity, LockEntity):
             raise ServiceValidationError(
                 f"list_groups: {err}",
             ) from err
+        except AkuvoxUnsupportedError as err:
+            await self._async_handle_unsupported_error(err)
         except AkuvoxError as err:
             raise HomeAssistantError(
                 f"list_groups failed: {err}",
@@ -1316,6 +1452,8 @@ class AkuvoxLockEntity(AkuvoxEntity, LockEntity):
             raise ServiceValidationError(
                 f"add_contact: {err}",
             ) from err
+        except AkuvoxUnsupportedError as err:
+            await self._async_handle_unsupported_error(err)
         except AkuvoxError as err:
             raise HomeAssistantError(
                 f"add_contact failed: {err}",
@@ -1345,6 +1483,8 @@ class AkuvoxLockEntity(AkuvoxEntity, LockEntity):
             raise ServiceValidationError(
                 f"add_group: {err}",
             ) from err
+        except AkuvoxUnsupportedError as err:
+            await self._async_handle_unsupported_error(err)
         except AkuvoxError as err:
             raise HomeAssistantError(
                 f"add_group failed: {err}",
@@ -1379,6 +1519,8 @@ class AkuvoxLockEntity(AkuvoxEntity, LockEntity):
             raise ServiceValidationError(
                 f"modify_contact: {err}",
             ) from err
+        except AkuvoxUnsupportedError as err:
+            await self._async_handle_unsupported_error(err)
         except AkuvoxError as err:
             raise HomeAssistantError(
                 f"modify_contact failed: {err}",
@@ -1414,6 +1556,8 @@ class AkuvoxLockEntity(AkuvoxEntity, LockEntity):
             raise ServiceValidationError(
                 f"modify_group: {err}",
             ) from err
+        except AkuvoxUnsupportedError as err:
+            await self._async_handle_unsupported_error(err)
         except AkuvoxError as err:
             raise HomeAssistantError(
                 f"modify_group failed: {err}",
@@ -1449,6 +1593,8 @@ class AkuvoxLockEntity(AkuvoxEntity, LockEntity):
             raise ServiceValidationError(
                 f"delete_contact: {err}",
             ) from err
+        except AkuvoxUnsupportedError as err:
+            await self._async_handle_unsupported_error(err)
         except AkuvoxError as err:
             raise HomeAssistantError(
                 f"delete_contact failed: {err}",
@@ -1533,6 +1679,8 @@ class AkuvoxLockEntity(AkuvoxEntity, LockEntity):
             raise ServiceValidationError(
                 f"delete_group: {err}",
             ) from err
+        except AkuvoxUnsupportedError as err:
+            await self._async_handle_unsupported_error(err)
         except AkuvoxError as err:
             raise HomeAssistantError(
                 f"delete_group failed: {err}",

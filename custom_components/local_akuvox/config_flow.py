@@ -3,6 +3,8 @@
 
 """Config flow for the Akuvox integration."""
 
+# aislop-ignore-file complexity/file-too-large -- HA flow callbacks stay together
+
 from __future__ import annotations
 
 import logging
@@ -18,14 +20,22 @@ from pylocal_akuvox import (
     AkuvoxConnectionError,
     AkuvoxDevice,
     AkuvoxError,
+    AkuvoxUnsupportedError,
     AuthConfig,
     AuthMethod,
 )
 
+from .capability_support import (
+    apply_capability_options,
+    async_clear_unsupported_flow_issue,
+    async_report_unsupported_capability,
+    get_mapping_attempt_unknown,
+)
 from .const import (
     AUTH_BASIC,
     AUTH_DIGEST,
     AUTH_NONE,
+    CONF_ATTEMPT_UNKNOWN_CAPABILITY,
     CONF_AUTH_METHOD,
     CONF_HOST,
     CONF_PASSWORD,
@@ -35,6 +45,7 @@ from .const import (
     CONF_VERIFY_SSL,
     CONF_WEBHOOK_ENABLED,
     CONF_WEBHOOK_ID,
+    DEFAULT_ATTEMPT_UNKNOWN_CAPABILITY,
     DEFAULT_REQUEST_DELAY,
     DOMAIN,
     get_auth_method_map,
@@ -237,6 +248,10 @@ class AkuvoxConfigFlow(ConfigFlow, domain=DOMAIN):
 
         try:
             async with device:
+                apply_capability_options(
+                    device,
+                    attempt_unknown=get_mapping_attempt_unknown(self._data),
+                )
                 info = await device.get_info()
         except AkuvoxConnectionError:
             _LOGGER.debug("Connection failed to %s", self._data[CONF_HOST])
@@ -244,6 +259,15 @@ class AkuvoxConfigFlow(ConfigFlow, domain=DOMAIN):
         except AkuvoxAuthenticationError:
             _LOGGER.debug("Auth failed for %s", self._data[CONF_HOST])
             errors["base"] = "invalid_auth"
+        except AkuvoxUnsupportedError as err:
+            await async_report_unsupported_capability(
+                self.hass,
+                None,
+                err,
+                context="config flow connection test",
+                issue_scope=str(self._data.get(CONF_HOST, "unknown")),
+            )
+            errors["base"] = "unknown"
         except AkuvoxError:
             _LOGGER.debug("Unknown error for %s", self._data[CONF_HOST])
             errors["base"] = "unknown"
@@ -276,12 +300,57 @@ class AkuvoxConfigFlow(ConfigFlow, domain=DOMAIN):
                 errors=errors,
             )
 
+        await async_clear_unsupported_flow_issue(
+            self.hass,
+            issue_scope=str(self._data.get(CONF_HOST, "unknown")),
+            reason=None,
+            capability=None,
+        )
         mac_clean = info.mac_address.lower().replace(":", "")
         await self.async_set_unique_id(mac_clean)
         self._abort_if_unique_id_configured()
 
         self._data["_device_model"] = info.model
-        return await self.async_step_webhook()
+        return await self.async_step_capabilities()
+
+    async def async_step_capabilities(
+        self,
+        user_input: dict[str, Any] | None = None,
+    ) -> Any:
+        """Handle the unknown capability opt-in step.
+
+        Args:
+            user_input: User input from the form.
+
+        Returns:
+            Flow result for the webhook step or capability form.
+
+        """
+        if user_input is not None:
+            self._data[CONF_ATTEMPT_UNKNOWN_CAPABILITY] = bool(
+                user_input.get(
+                    CONF_ATTEMPT_UNKNOWN_CAPABILITY,
+                    DEFAULT_ATTEMPT_UNKNOWN_CAPABILITY,
+                )
+            )
+            return await self.async_step_webhook()
+
+        return self.async_show_form(
+            step_id="capabilities",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        CONF_ATTEMPT_UNKNOWN_CAPABILITY,
+                        default=bool(
+                            self._data.get(
+                                CONF_ATTEMPT_UNKNOWN_CAPABILITY,
+                                DEFAULT_ATTEMPT_UNKNOWN_CAPABILITY,
+                            )
+                        ),
+                    ): bool,
+                }
+            ),
+        )
 
     async def async_step_webhook(
         self,
@@ -392,5 +461,25 @@ class AkuvoxConfigFlow(ConfigFlow, domain=DOMAIN):
                 self._data.get(CONF_REQUEST_DELAY, DEFAULT_REQUEST_DELAY)
             ),
         )
-        async with device:
-            await device.set_device_config(payload)  # type: ignore[attr-defined]
+        try:
+            async with device:
+                apply_capability_options(
+                    device,
+                    attempt_unknown=get_mapping_attempt_unknown(self._data),
+                )
+                await device.set_device_config(payload)  # type: ignore[attr-defined]
+            await async_clear_unsupported_flow_issue(
+                self.hass,
+                issue_scope=str(self._data.get(CONF_HOST, "unknown")),
+                reason=None,
+                capability=None,
+            )
+        except AkuvoxUnsupportedError as err:
+            await async_report_unsupported_capability(
+                self.hass,
+                None,
+                err,
+                context="config flow webhook push",
+                issue_scope=str(self._data.get(CONF_HOST, "unknown")),
+            )
+            raise

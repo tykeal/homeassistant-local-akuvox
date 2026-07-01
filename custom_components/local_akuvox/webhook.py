@@ -20,7 +20,9 @@ from homeassistant.components.webhook import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
+from pylocal_akuvox import AkuvoxUnsupportedError
 
+from .capability_support import async_report_unsupported_capability
 from .const import (
     ACTIONURL_ENABLE_KEY,
     ACTIONURL_KEYS,
@@ -116,6 +118,15 @@ async def _refresh_user_cache(
         )
     except TimeoutError:
         _LOGGER.debug("User cache refresh timed out")
+        return
+    except AkuvoxUnsupportedError as exc:
+        await async_report_unsupported_capability(
+            coordinator.hass,
+            getattr(coordinator, "config_entry", None),
+            exc,
+            context="webhook user cache refresh",
+            issue_scope=entry_id,
+        )
         return
     except Exception as exc:
         _LOGGER.debug("Failed to refresh user cache: %s", exc, exc_info=True)

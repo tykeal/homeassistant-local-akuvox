@@ -9,10 +9,24 @@ import logging
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.typing import ConfigType
-from pylocal_akuvox import AkuvoxDevice, AuthConfig, AuthMethod
+from pylocal_akuvox import (
+    AkuvoxAuthenticationError,
+    AkuvoxDevice,
+    AkuvoxError,
+    AkuvoxUnsupportedError,
+    AuthConfig,
+    AuthMethod,
+)
 
+from .capability_support import (
+    apply_capability_options,
+    async_clear_unsupported_capability_issue,
+    async_report_unsupported_capability,
+    get_effective_attempt_unknown,
+)
 from .const import (
     CONF_AUTH_METHOD,
     CONF_HOST,
@@ -127,8 +141,35 @@ async def async_setup_entry(
 
     """
     device = _create_device(entry)
-    await device.__aenter__()
+    try:
+        await device.__aenter__()
+    except AkuvoxAuthenticationError as err:
+        raise ConfigEntryAuthFailed(f"Authentication failed: {err}") from err
+    except AkuvoxUnsupportedError as err:
+        await async_report_unsupported_capability(
+            hass,
+            entry,
+            err,
+            context="setup",
+        )
+        raise ConfigEntryNotReady(
+            f"Unsupported capability during setup: {err}"
+        ) from err
+    except AkuvoxError as err:
+        raise ConfigEntryNotReady(f"Unable to connect to Akuvox device: {err}") from err
+
+    apply_capability_options(
+        device,
+        attempt_unknown=get_effective_attempt_unknown(entry),
+    )
+    await async_clear_unsupported_capability_issue(
+        hass,
+        entry,
+        reason=None,
+        capability=None,
+    )
     coordinator = AkuvoxDataUpdateCoordinator(hass=hass, device=device)
+    coordinator.config_entry = entry
 
     try:
         await coordinator.async_config_entry_first_refresh()
@@ -237,11 +278,34 @@ async def async_remove_entry(
         )
         device = _create_device(entry)
         async with device:
+            apply_capability_options(
+                device,
+                attempt_unknown=get_effective_attempt_unknown(entry),
+            )
             await device.set_device_config(disable_payload)  # type: ignore[attr-defined]
+    except AkuvoxUnsupportedError as err:
+        await async_report_unsupported_capability(
+            hass,
+            entry,
+            err,
+            context="entry removal webhook disable",
+        )
+        _LOGGER.warning(
+            "Webhook disable config is unsupported for %s; "
+            "device may retain stale URLs",
+            entry.title,
+        )
     except Exception:
         _LOGGER.warning(
             "Failed to push webhook disable config to %s "
             "during removal; device may retain stale URLs",
             entry.title,
             exc_info=True,
+        )
+    finally:
+        await async_clear_unsupported_capability_issue(
+            hass,
+            entry,
+            reason=None,
+            capability=None,
         )

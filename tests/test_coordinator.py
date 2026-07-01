@@ -18,6 +18,9 @@ from pylocal_akuvox import (
     AkuvoxConnectionError,
     AkuvoxDeviceError,
     AkuvoxParseError,
+    AkuvoxUnsupportedError,
+    Capability,
+    DeviceCapabilities,
     DeviceInfo,
 )
 from pytest_homeassistant_custom_component.common import MockConfigEntry
@@ -264,6 +267,7 @@ async def test_state_reflects_relay_change_after_update(
     mock_device_info: DeviceInfo,
     mock_config_entry_data_none: dict[str, Any],
     mock_device_config: Any,
+    supported_capabilities: DeviceCapabilities,
 ) -> None:
     """Test entity state changes when coordinator data changes.
 
@@ -275,6 +279,7 @@ async def test_state_reflects_relay_change_after_update(
     device.get_relay_status = AsyncMock(return_value={"RelayA": 0})
     device.trigger_relay = AsyncMock(return_value=None)
     device.get_device_config = AsyncMock(return_value=mock_device_config)
+    device.capabilities = supported_capabilities
     device.__aenter__ = AsyncMock(return_value=device)
     device.__aexit__ = AsyncMock(return_value=None)
 
@@ -315,6 +320,7 @@ async def test_entity_recovers_after_coordinator_failure(
     mock_device_info: DeviceInfo,
     mock_config_entry_data_none: dict[str, Any],
     mock_device_config: Any,
+    supported_capabilities: DeviceCapabilities,
 ) -> None:
     """Test entity recovers to correct state after device comes back.
 
@@ -327,6 +333,7 @@ async def test_entity_recovers_after_coordinator_failure(
     device.get_relay_status = AsyncMock(return_value={"RelayA": 0})
     device.trigger_relay = AsyncMock(return_value=None)
     device.get_device_config = AsyncMock(return_value=mock_device_config)
+    device.capabilities = supported_capabilities
     device.__aenter__ = AsyncMock(return_value=device)
     device.__aexit__ = AsyncMock(return_value=None)
 
@@ -402,6 +409,7 @@ async def test_coordinator_multi_relay_state_change(
     mock_device_info: DeviceInfo,
     mock_config_entry_data_none: dict[str, Any],
     mock_device_config: Any,
+    supported_capabilities: DeviceCapabilities,
 ) -> None:
     """Test coordinator updates propagate to correct relay entities.
 
@@ -415,6 +423,7 @@ async def test_coordinator_multi_relay_state_change(
     )
     device.trigger_relay = AsyncMock(return_value=None)
     device.get_device_config = AsyncMock(return_value=mock_device_config)
+    device.capabilities = supported_capabilities
     device.__aenter__ = AsyncMock(return_value=device)
     device.__aexit__ = AsyncMock(return_value=None)
 
@@ -1005,3 +1014,95 @@ async def test_coordinator_user_cache_returns_none_when_list_users_absent(
     data = await coordinator._async_update_data()
 
     assert data.users == []
+
+
+async def test_coordinator_fails_when_capabilities_missing(
+    hass: HomeAssistant,
+) -> None:
+    """Test coordinator fails controlled when capabilities are unavailable."""
+    device = AsyncMock()
+    device.capabilities = None
+    coordinator = AkuvoxDataUpdateCoordinator(hass=hass, device=device)
+
+    with pytest.raises(UpdateFailed, match="capabilities"):
+        await coordinator._async_update_data()
+
+
+async def test_coordinator_reports_relay_status_unsupported(
+    hass: HomeAssistant,
+    mock_device_info: DeviceInfo,
+    mock_device_config: Any,
+) -> None:
+    """Test unsupported relay status yields empty controlled data."""
+    device = AsyncMock()
+    device.get_relay_status = AsyncMock(
+        side_effect=AkuvoxUnsupportedError(
+            "blocked",
+            reason="capability_missing",
+            capability=Capability.RELAY_STATUS,
+        )
+    )
+    device.get_info = AsyncMock(return_value=mock_device_info)
+    device.get_device_config = AsyncMock(return_value=mock_device_config)
+    coordinator = AkuvoxDataUpdateCoordinator(hass=hass, device=device)
+
+    data = await coordinator._async_update_data()
+
+    assert data.relay_status == {}
+    assert len(hass.data[DOMAIN]["unsupported_capability_issue_ids"]) == 1
+
+
+async def test_coordinator_reports_config_unsupported(
+    hass: HomeAssistant,
+    mock_device_info: DeviceInfo,
+    mock_relay_status: dict[str, Any],
+) -> None:
+    """Test unsupported device config falls back to defaults."""
+    device = AsyncMock()
+    device.get_relay_status = AsyncMock(return_value=mock_relay_status)
+    device.get_info = AsyncMock(return_value=mock_device_info)
+    device.get_device_config = AsyncMock(
+        side_effect=AkuvoxUnsupportedError(
+            "blocked",
+            reason="capability_missing",
+            capability=Capability.DEVICE_CONFIG_GET,
+        )
+    )
+    coordinator = AkuvoxDataUpdateCoordinator(hass=hass, device=device)
+
+    data = await coordinator._async_update_data()
+
+    assert data.device_name == "Akuvox E21V"
+    assert len(hass.data[DOMAIN]["unsupported_capability_issue_ids"]) == 1
+
+
+async def test_coordinator_reports_user_list_unsupported(
+    hass: HomeAssistant,
+    mock_device_info: DeviceInfo,
+    mock_relay_status: dict[str, Any],
+    mock_device_config: Any,
+) -> None:
+    """Test unsupported user list keeps the existing cache."""
+    device = AsyncMock()
+    device.get_relay_status = AsyncMock(return_value=mock_relay_status)
+    device.get_info = AsyncMock(return_value=mock_device_info)
+    device.get_device_config = AsyncMock(return_value=mock_device_config)
+    device.list_users = AsyncMock(
+        side_effect=AkuvoxUnsupportedError(
+            "blocked",
+            reason="capability_missing",
+            capability=Capability.USER_LIST,
+        )
+    )
+    coordinator = AkuvoxDataUpdateCoordinator(hass=hass, device=device)
+
+    data = await coordinator._async_update_data()
+
+    assert data.users == []
+    assert len(hass.data[DOMAIN]["unsupported_capability_issue_ids"]) == 1
+
+    device.list_users.reset_mock()
+    data = await coordinator._async_update_data()
+
+    assert data.users == []
+    device.list_users.assert_not_awaited()
