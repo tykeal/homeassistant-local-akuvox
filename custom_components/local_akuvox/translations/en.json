@@ -46,7 +46,7 @@
       },
       "capabilities": {
         "title": "Capability safety",
-        "description": "pylocal-akuvox 1.0.0 blocks unrecognized or unknown device capabilities by default. Enable this only if you accept attempting unproven operations; confirmed unsupported capabilities remain blocked.",
+        "description": "pylocal-akuvox 1.1.0 blocks unrecognized or unknown device capabilities by default. Enable this only if you accept attempting unproven operations; confirmed unsupported capabilities remain blocked.",
         "data": {
           "attempt_unknown_capability": "Attempt unknown capabilities"
         },
@@ -421,6 +421,36 @@
           "description": "Device ID of the group to delete."
         }
       }
+    },
+    "run_capability_report": {
+      "name": "Run capability report",
+      "description": "Return the redacted pylocal-akuvox 1.1.0 capability report. Use the response or optional JSON file for upstream new-device issues.",
+      "fields": {
+        "write": {
+          "name": "Run write tests",
+          "description": "When enabled, the upstream write suite may create, modify, verify, and delete throwaway users, schedules, groups, and contacts, and may run relay-trigger or device-config write checks. Use only when temporary device mutations are acceptable."
+        },
+        "open_door": {
+          "name": "Run OpenDoor relay test",
+          "description": "Physical safety warning: OpenDoor can actuate a relay, unlock a door, or affect building access. Enable only with write mode while authorized and physically present."
+        },
+        "open_door_user": {
+          "name": "OpenDoor username",
+          "description": "Relay HTTP username required only with OpenDoor. The integration does not store, return, save, or log this value; pylocal-akuvox 1.1.0 debug logging may include the username."
+        },
+        "open_door_password": {
+          "name": "OpenDoor password",
+          "description": "Relay HTTP password required only with OpenDoor. The integration does not store, return, save, or log this password."
+        },
+        "save_to_file": {
+          "name": "Save report to file",
+          "description": "Write the same redacted report to a new JSON file below local_akuvox/capability_reports in the Home Assistant config directory. Existing files are never overwritten."
+        },
+        "file_name": {
+          "name": "Report file name",
+          "description": "Optional relative .json file name under local_akuvox/capability_reports. Absolute paths and traversal are rejected. Leave empty to generate a unique name."
+        }
+      }
     }
   },
   "exceptions": {
@@ -477,6 +507,12 @@
     },
     "cannot_remove_last_pair": {
       "message": "Cannot remove the last schedule-relay pair."
+    },
+    "capability_report_open_door_write": {
+      "message": "OpenDoor capability reports require write mode."
+    },
+    "capability_report_file_exists": {
+      "message": "Capability report file already exists: {path}"
     }
   },
   "issues": {

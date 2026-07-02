@@ -44,7 +44,7 @@ ______________________________________________________________________
 **Purpose**: Re-confirm live source facts, then make the v1.1.0 report API
 importable before any tests import the new symbol.
 
-- [ ] T001 [US1] Re-confirm the checked-out upstream signature and export in
+- [X] T001 [US1] Re-confirm the checked-out upstream signature and export in
   the adjacent `pylocal-akuvox` checkout at
   `src/pylocal_akuvox/_capability_report.py` and
   `src/pylocal_akuvox/__init__.py` with this async API:
@@ -66,16 +66,16 @@ importable before any tests import the new symbol.
   Also confirm custom/no-op emitters redirect stdout/stderr and therefore
   require serialized service execution. Covers FR-003, FR-015, SC-001,
   SC-002, SC-003, and SC-006.
-- [ ] T002 [US1] Raise the `pylocal-akuvox` floor from `>=1.0.0` to
+- [X] T002 [US1] Raise the `pylocal-akuvox` floor from `>=1.0.0` to
   `>=1.1.0` in `custom_components/local_akuvox/manifest.json`,
   `pyproject.toml`, the `pyproject.toml` comments that mention v1.0.0,
   and any `.pre-commit-config.yaml` mypy hook dependency or comment that
   constrains the library version. Covers FR-018 and SC-006.
-- [ ] T003 [US1] Run `uv sync` from the repository root, commit the
+- [X] T003 [US1] Run `uv sync` from the repository root, commit the
   resulting `uv.lock` resolution in the implementation PR, and verify
   `uv lock --check` accepts `pylocal-akuvox>=1.1.0`. Covers FR-018 and
   SC-006.
-- [ ] T004 [P] [US1] Add dependency/import regression tests in the
+- [X] T004 [P] [US1] Add dependency/import regression tests in the
   existing pin or service test location, such as `tests/test_services.py`,
   proving `manifest.json`, `pyproject.toml`, `uv.lock`, and the runtime
   import all resolve `pylocal-akuvox>=1.1.0` and export
@@ -95,12 +95,12 @@ schema with safe defaults and OpenDoor rejection before device entry.
 
 ### Tests for schema behavior
 
-- [ ] T005 [P] [US3] Add failing schema tests in `tests/test_services.py`
+- [X] T005 [P] [US3] Add failing schema tests in `tests/test_services.py`
   for rejected `open_door=True` without `write=True`, missing
   `open_door_user`, missing `open_door_password`, and unused credentials
   when `open_door=False`; assert `_create_device` and upstream report are
   not invoked. Covers FR-005 through FR-009, FR-027, SC-003, and SC-004.
-- [ ] T006 [P] [US1] Add failing schema tests in `tests/test_services.py`
+- [X] T006 [P] [US1] Add failing schema tests in `tests/test_services.py`
   for default `write=False`, default `open_door=False`, optional
   `save_to_file=False`, absent `file_name`, non-empty relay credential
   strings, and rejection of `file_name` when `save_to_file=False`.
@@ -108,13 +108,13 @@ schema with safe defaults and OpenDoor rejection before device entry.
 
 ### Foundational implementation
 
-- [ ] T007 [US1] Add `SERVICE_RUN_CAPABILITY_REPORT` plus service field
+- [X] T007 [US1] Add `SERVICE_RUN_CAPABILITY_REPORT` plus service field
   constants such as `CONF_REPORT_WRITE`, `CONF_REPORT_OPEN_DOOR`,
   `CONF_REPORT_OPEN_DOOR_USER`, `CONF_REPORT_OPEN_DOOR_PASSWORD`,
   `CONF_REPORT_SAVE_TO_FILE`, `CONF_REPORT_FILE_NAME`, and a reserved
   report-lock data key to `custom_components/local_akuvox/const.py`.
   Covers FR-001, FR-004 through FR-010, FR-024, FR-025, and SC-003.
-- [ ] T008 [US3] Add `SERVICE_RUN_CAPABILITY_REPORT_SCHEMA` and any
+- [X] T008 [US3] Add `SERVICE_RUN_CAPABILITY_REPORT_SCHEMA` and any
   private validation helper in `custom_components/local_akuvox/services.py`
   using `cv.make_entity_service_schema()`, voluptuous booleans, non-empty
   strings, and hard OpenDoor/file-output post-validation. Covers FR-004
@@ -136,12 +136,12 @@ upstream redacted report under `report`, with no write or OpenDoor options.
 
 ### Tests for User Story 1
 
-- [ ] T009 [P] [US1] Extend `tests/conftest.py` with reusable mocks for a
+- [X] T009 [P] [US1] Extend `tests/conftest.py` with reusable mocks for a
   fresh `_create_device` path, context entry, `apply_capability_options`,
   and `pylocal_akuvox.run_capability_report`; keep existing coordinator
   device mocks separate. Covers FR-003, FR-010, FR-022, FR-027, SC-001,
   SC-004, and SC-005.
-- [ ] T010 [P] [US1] Add failing service behavior tests in
+- [X] T010 [P] [US1] Add failing service behavior tests in
   `tests/test_lock.py` for a default read-only call: `_create_device(entry)`
   is used, `async with device` is entered, `apply_capability_options()` runs
   after entry, upstream receives `write=False`, `open_door=False`, no relay
@@ -150,13 +150,13 @@ upstream redacted report under `report`, with no write or OpenDoor options.
   upstream `AkuvoxValidationError` or generic `AkuvoxError` failure cases
   that raise controlled errors with no partial success. Covers FR-003,
   FR-010 through FR-017, FR-022, FR-027, SC-001, SC-004, and SC-005.
-- [ ] T011 [P] [US1] Add failing concurrency and unload tests in
+- [X] T011 [P] [US1] Add failing concurrency and unload tests in
   `tests/test_lock.py` and `tests/test_init.py` proving all config entries
   share one Home Assistant instance-wide report lock, concurrent upstream
   calls are serialized, and final unload removes only the reserved lock key
   while preserving existing domain-data cleanup. Covers FR-015, FR-027, and
   SC-006.
-- [ ] T012 [P] [US1] Add failing registration tests in
+- [X] T012 [P] [US1] Add failing registration tests in
   `tests/test_services.py` proving `SERVICE_RUN_CAPABILITY_REPORT` is a
   `Platform.LOCK` entity service, dispatches to `run_capability_report`, and
   registers with `supports_response=SupportsResponse.ONLY`. Covers FR-001,
@@ -164,25 +164,25 @@ upstream redacted report under `report`, with no write or OpenDoor options.
 
 ### Implementation for User Story 1
 
-- [ ] T013 [US1] Implement `AkuvoxLockEntity.run_capability_report()` in
+- [X] T013 [US1] Implement `AkuvoxLockEntity.run_capability_report()` in
   `custom_components/local_akuvox/lock.py` with a docstring, typed
   `ServiceResponse`, sanitized argument extraction, fresh `_create_device`,
   `async with device`, post-entry `apply_capability_options()` using
   `get_effective_attempt_unknown(entry)`, serialized upstream execution,
   and response `{"report": report}`. Covers FR-003, FR-010 through FR-015,
   FR-022, SC-001, SC-004, and SC-005.
-- [ ] T014 [US1] Update `custom_components/local_akuvox/services.py` to
+- [X] T014 [US1] Update `custom_components/local_akuvox/services.py` to
   import the new constants and add `_register_report_services(hass)` after
   the existing domain helpers; register the new service on `Platform.LOCK`
   with `SERVICE_RUN_CAPABILITY_REPORT_SCHEMA`, `func` equal to the service
   name, and `SupportsResponse.ONLY`. Covers FR-001, FR-002, FR-019, and
   SC-001.
-- [ ] T015 [US1] Extend `async_register_services()` in
+- [X] T015 [US1] Extend `async_register_services()` in
   `custom_components/local_akuvox/services.py` to call
   `_register_report_services(hass)` without changing existing schedule,
   user, contact, or group registrations. Covers FR-001, FR-002, FR-019,
   and SC-001.
-- [ ] T016 [US1] Update `custom_components/local_akuvox/__init__.py` so the
+- [X] T016 [US1] Update `custom_components/local_akuvox/__init__.py` so the
   reserved report-lock runtime key is ignored as a coordinator entry and is
   removed on final unload when no real config-entry coordinators or other
   runtime data remain. Covers FR-015 and SC-006.
@@ -203,32 +203,32 @@ all returned write, skip, failure, and deletion-verification data preserved.
 
 ### Tests for User Story 2
 
-- [ ] T017 [P] [US2] Add failing tests in `tests/test_lock.py` for
+- [X] T017 [P] [US2] Add failing tests in `tests/test_lock.py` for
   `write=True` pass-through without OpenDoor credentials, preserving the
   upstream redacted report exactly under `response["report"]` and not
   storing, logging, or returning service credentials. Covers FR-004,
   FR-009, FR-013, FR-014, FR-023, FR-027, SC-002, and SC-004.
-- [ ] T018 [P] [US2] Add failing tests in `tests/test_lock.py` proving
+- [X] T018 [P] [US2] Add failing tests in `tests/test_lock.py` proving
   `attempt_unknown_capability` is read from the config entry, applied to the
   fresh entered device before upstream execution, lets UNKNOWN gates run
   only when opted in, never bypasses confirmed UNSUPPORTED behavior, and
   reports upstream `AkuvoxUnsupportedError` through the issue #149 repairs
   path with context `capability report service`. Covers FR-010 through
   FR-012, FR-016, FR-027, and SC-005.
-- [ ] T019 [P] [US2] Add failing diagnostics regression tests in
+- [X] T019 [P] [US2] Add failing diagnostics regression tests in
   `tests/test_diagnostics.py` proving diagnostics remain read-only, never
   imports or calls `run_capability_report`, and do not expose write-mode or
   OpenDoor service fields. Covers FR-022, FR-027, SC-001, and SC-006.
 
 ### Implementation for User Story 2
 
-- [ ] T020 [US2] Complete write-mode plumbing in
+- [X] T020 [US2] Complete write-mode plumbing in
   `custom_components/local_akuvox/lock.py` so `write` is passed unchanged,
   upstream skipped/failed/write-test evidence is not reshaped, and raw
   relay or integration credentials are absent from logs, repairs, response
   metadata, and saved artifacts controlled by the integration. Covers
   FR-004, FR-009, FR-013, FR-014, FR-023, SC-002, and SC-004.
-- [ ] T021 [US2] Reuse the issue #149 repairs/logging path in
+- [X] T021 [US2] Reuse the issue #149 repairs/logging path in
   `custom_components/local_akuvox/lock.py` for `AkuvoxUnsupportedError`,
   mapping context to `capability report service`; map other `AkuvoxError`
   subclasses to sanitized, actionable `HomeAssistantError` or
@@ -251,12 +251,12 @@ records the returned redacted report.
 
 ### Tests for User Story 3
 
-- [ ] T022 [P] [US3] Add failing tests in `tests/test_services.py` and
+- [X] T022 [P] [US3] Add failing tests in `tests/test_services.py` and
   `tests/test_lock.py` proving invalid OpenDoor combinations are rejected
   before `_create_device`, before `async with device`, and before upstream
   report invocation. Covers FR-005 through FR-008, FR-027, SC-003, and
   SC-004.
-- [ ] T023 [P] [US3] Add failing tests in `tests/test_lock.py` for the
+- [X] T023 [P] [US3] Add failing tests in `tests/test_lock.py` for the
   valid OpenDoor path: `write=True`, `open_door=True`, non-empty
   `open_door_user`, and non-empty `open_door_password` are passed to
   upstream, and neither credential is emitted by integration-controlled
@@ -265,7 +265,7 @@ records the returned redacted report.
 
 ### Implementation for User Story 3
 
-- [ ] T024 [US3] Ensure `custom_components/local_akuvox/services.py` and
+- [X] T024 [US3] Ensure `custom_components/local_akuvox/services.py` and
   `custom_components/local_akuvox/lock.py` enforce OpenDoor's hard gate,
   reject unused relay credentials when `open_door=False`, pass valid relay
   credentials only to upstream, and document the upstream v1.1.0 username
@@ -284,19 +284,19 @@ Assistant config directory without overwriting existing support evidence.
 
 ### Tests for file output
 
-- [ ] T025 [P] [US1] Add failing file-output tests in `tests/test_lock.py`
+- [X] T025 [P] [US1] Add failing file-output tests in `tests/test_lock.py`
   for generated config-relative names under
   `local_akuvox/capability_reports/`, caller-provided relative `.json`
   names, nested relative names that stay inside the report directory, and
   response `file.path` without absolute host paths. Covers FR-024 through
   FR-026, FR-027, SC-004, and SC-006.
-- [ ] T026 [P] [US1] Add failing validation tests in `tests/test_lock.py`
+- [X] T026 [P] [US1] Add failing validation tests in `tests/test_lock.py`
   for empty `file_name`, absolute paths, `..` traversal, paths resolving
   outside the report directory, non-`.json` suffixes, existing targets,
   validated parent-directory creation failures, and late exclusive-create
   collisions; assert predictable path and directory failures occur before
   device entry. Covers FR-024 through FR-027, SC-004, and SC-006.
-- [ ] T027 [P] [US1] Add failing tests in `tests/test_lock.py` proving the
+- [X] T027 [P] [US1] Add failing tests in `tests/test_lock.py` proving the
   saved file content is exactly `response["report"]` serialized as pretty
   UTF-8 JSON with a trailing newline, and file write failures do not leak
   secrets or raw host paths. Covers FR-013, FR-024 through FR-027, SC-004,
@@ -304,14 +304,14 @@ Assistant config directory without overwriting existing support evidence.
 
 ### Implementation for file output
 
-- [ ] T028 [US1] Implement config-dir path validation and response metadata
+- [X] T028 [US1] Implement config-dir path validation and response metadata
   in `custom_components/local_akuvox/lock.py`: base directory
   `<config>/local_akuvox/capability_reports/`, generated
   `<entry_id>-<YYYYMMDDTHHMMSSffffffZ>.json`, relative caller names only,
   `.json` suffix, containment checks, existing-target rejection, validated
   parent-directory creation before `_create_device()`, and config-relative
   `file.path`. Covers FR-024 through FR-026 and SC-004.
-- [ ] T029 [US1] Implement the non-blocking JSON write in
+- [X] T029 [US1] Implement the non-blocking JSON write in
   `custom_components/local_akuvox/lock.py` using Home Assistant executor
   helpers for synchronous file work, reuse the already created validated
   parent directories, use exclusive creation for no-overwrite, and write
@@ -330,32 +330,32 @@ examples, and strong physical-safety warnings.
 
 ### Tests for metadata
 
-- [ ] T030 [P] [US3] Add failing metadata tests in `tests/test_services.py`
+- [X] T030 [P] [US3] Add failing metadata tests in `tests/test_services.py`
   or existing translation tests proving `services.yaml`, `strings.json`, and
   `translations/en.json` define every new field, selector, label, and
   description. Covers FR-019, FR-020, FR-027, and SC-006.
-- [ ] T031 [P] [US3] Add failing text tests proving OpenDoor descriptions
+- [X] T031 [P] [US3] Add failing text tests proving OpenDoor descriptions
   contain prominent warnings that it can actuate a relay, unlock a door, or
   affect access and that the caller must be authorized and physically
   present. Covers FR-021, FR-027, SC-003, and SC-004.
-- [ ] T032 [P] [US2] Add failing text tests proving `write` descriptions
+- [X] T032 [P] [US2] Add failing text tests proving `write` descriptions
   warn about throwaway create, modify, verify, delete operations plus
   upstream relay-trigger and device-config write checks. Covers FR-023,
   FR-027, SC-002, and SC-004.
 
 ### Metadata implementation
 
-- [ ] T033 [US1] Add `run_capability_report` to
+- [X] T033 [US1] Add `run_capability_report` to
   `custom_components/local_akuvox/services.yaml` with lock target,
   selectors, examples, `write`, `open_door`, `open_door_user`,
   `open_door_password` password selector, `save_to_file`, `file_name`, and
   strong write/OpenDoor warnings matching the runtime schema. Covers FR-019,
   FR-021, FR-023 through FR-025, and SC-003.
-- [ ] T034 [US1] Add matching service labels, field labels,
+- [X] T034 [US1] Add matching service labels, field labels,
   descriptions, validation text, and pylocal-akuvox v1.1.0 capability text
   to `custom_components/local_akuvox/strings.json`. Covers FR-020,
   FR-021, FR-023, FR-027, SC-003, SC-004, and SC-006.
-- [ ] T035 [US1] Mirror the new service strings and v1.1.0 capability text
+- [X] T035 [US1] Mirror the new service strings and v1.1.0 capability text
   in `custom_components/local_akuvox/translations/en.json`, keeping raw
   OpenDoor credentials out of translated errors and repairs placeholders.
   Covers FR-020, FR-021, FR-023, FR-027, SC-003, SC-004, and SC-006.
@@ -371,13 +371,13 @@ ______________________________________________________________________
 **Purpose**: Close remaining error-path coverage and run all local quality
 gates required before the implementation PR.
 
-- [ ] T036 [P] [US4] Audit `tests/test_capability_error_paths.py`,
+- [X] T036 [P] [US4] Audit `tests/test_capability_error_paths.py`,
   `tests/test_lock.py`, and `tests/test_capability_support.py` after the
   targeted TDD tasks to confirm coverage for validation, unsupported,
   generic Akuvox, entry-time, and file-write failures; add only missing
   regression cases discovered by coverage or review. Covers FR-016, FR-017,
   FR-024, FR-027, SC-004, SC-005, and SC-006.
-- [ ] T037 [US4] Run targeted tests and fix only failures caused by this
+- [X] T037 [US4] Run targeted tests and fix only failures caused by this
   feature. Covers FR-027 and SC-006.
 
   ```bash
@@ -386,7 +386,7 @@ gates required before the implementation PR.
     tests/test_capability_error_paths.py -q
   ```
 
-- [ ] T038 [US4] Run the full test suite and require 100% coverage with all
+- [X] T038 [US4] Run the full test suite and require 100% coverage with all
   tests passing. Covers FR-027 and SC-006.
 
   ```bash
@@ -394,25 +394,25 @@ gates required before the implementation PR.
     --cov-report=term-missing
   ```
 
-- [ ] T039 [P] [US4] Run
+- [X] T039 [P] [US4] Run
   `uv run ruff check custom_components/ tests/` and
   `uv run ruff format --check custom_components/ tests/`, fixing all lint
   or format failures without unrelated changes. Covers SC-006.
-- [ ] T040 [P] [US4] Run `uv run mypy custom_components tests` and fix all
+- [X] T040 [P] [US4] Run `uv run mypy custom_components tests` and fix all
   type errors, including any new mocks for `run_capability_report`, fresh
   devices, executor file writes, and response shapes. Covers SC-006.
-- [ ] T041 [P] [US4] Run
+- [X] T041 [P] [US4] Run
   `uv run interrogate custom_components tests -vv --fail-under=100` and
   keep docstring coverage at 100 for every new helper and service method.
   Covers SC-006.
-- [ ] T042 [US4] Stage the implementation files, run
+- [X] T042 [US4] Stage the implementation files, run
   `npx --yes aislop@0.12.0 ci --staged`, and keep the aislop score at 100
   without broad suppressions. Covers SC-006.
-- [ ] T043 [US4] Run the configured hassfest validation through the
+- [X] T043 [US4] Run the configured hassfest validation through the
   existing GitHub Actions `validate.yaml` workflow or the supported local
   hassfest command if one is added before implementation, and require it to
   pass before merge. Covers FR-019, FR-020, and SC-006.
-- [ ] T044 [US4] Run `uv run pre-commit run --all-files` before the
+- [X] T044 [US4] Run `uv run pre-commit run --all-files` before the
   implementation commit so reuse, markdownlint, gitlint, actionlint,
   aislop, interrogate, mypy, ruff, and other configured hooks are clean.
   Covers SC-006.
@@ -427,12 +427,12 @@ ______________________________________________________________________
 **Purpose**: Preserve atomic commit history for the later implementation
 stage and close the GitHub issue only from that implementation PR.
 
-- [ ] T045 [US4] In the implementation PR, commit code, tests, metadata,
+- [X] T045 [US4] In the implementation PR, commit code, tests, metadata,
   dependency pins, and `uv.lock` as one or more atomic implementation
   commits whose final implementation commit message or PR body includes
   `Closes #189`; do not close the issue from this tasks-only stage. Covers
   SC-006.
-- [ ] T046 [US4] In the same implementation PR, flip completed checkboxes
+- [X] T046 [US4] In the same implementation PR, flip completed checkboxes
   in `specs/012-capability-report-service/tasks.md` as a separate atomic
   docs commit after the implementation commits and successful verification.
   Covers SC-006.

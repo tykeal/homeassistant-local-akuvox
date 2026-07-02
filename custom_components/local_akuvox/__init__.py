@@ -37,6 +37,7 @@ from .const import (
     CONF_VERIFY_SSL,
     CONF_WEBHOOK_ENABLED,
     CONF_WEBHOOK_ID,
+    DATA_CAPABILITY_REPORT_LOCK,
     DEFAULT_REQUEST_DELAY,
     DOMAIN,
     PLATFORMS,
@@ -126,6 +127,20 @@ def _create_device(entry: ConfigEntry) -> AkuvoxDevice:
     )
 
 
+def _cleanup_domain_runtime_data(hass: HomeAssistant) -> None:
+    """Remove reserved runtime data when no coordinators remain."""
+    domain_data = hass.data.get(DOMAIN)
+    if not isinstance(domain_data, dict):
+        return
+    has_coordinator = any(
+        isinstance(value, AkuvoxDataUpdateCoordinator) for value in domain_data.values()
+    )
+    if not has_coordinator:
+        domain_data.pop(DATA_CAPABILITY_REPORT_LOCK, None)
+    if not domain_data:
+        hass.data.pop(DOMAIN, None)
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: ConfigEntry,
@@ -194,8 +209,7 @@ async def async_setup_entry(
     except Exception:
         async_unregister_webhook(hass, entry)
         hass.data[DOMAIN].pop(entry.entry_id, None)
-        if not hass.data[DOMAIN]:
-            hass.data.pop(DOMAIN, None)
+        _cleanup_domain_runtime_data(hass)
         await device.__aexit__(None, None, None)
         raise
 
@@ -242,8 +256,7 @@ async def async_unload_entry(
         await coordinator.device.__aexit__(None, None, None)
         _LOGGER.debug("Closed device session for %s", entry.title)
 
-        if not hass.data.get(DOMAIN):
-            hass.data.pop(DOMAIN, None)
+        _cleanup_domain_runtime_data(hass)
 
     return unload_ok
 

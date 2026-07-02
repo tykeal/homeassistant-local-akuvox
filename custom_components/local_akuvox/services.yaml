@@ -500,3 +500,47 @@ delete_group:
       selector:
         text:
           multiline: false
+
+run_capability_report:
+  target:
+    entity:
+      domain: lock
+      integration: local_akuvox
+  fields:
+    write:
+      required: false
+      default: false
+      example: false
+      selector:
+        boolean:
+    open_door:
+      required: false
+      default: false
+      example: false
+      selector:
+        boolean:
+    open_door_user:
+      required: false
+      example: "relay-user"
+      selector:
+        text:
+          multiline: false
+    open_door_password:
+      required: false
+      example: "relay-password"
+      selector:
+        text:
+          multiline: false
+          type: password
+    save_to_file:
+      required: false
+      default: false
+      example: false
+      selector:
+        boolean:
+    file_name:
+      required: false
+      example: "front-door-capability-report.json"
+      selector:
+        text:
+          multiline: false

@@ -5,14 +5,20 @@
 
 from __future__ import annotations
 
+import importlib.metadata
+import json
 import logging
+import tomllib
+from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
 import pytest
 import voluptuous as vol
-from homeassistant.core import HomeAssistant
+from homeassistant.const import Platform
+from homeassistant.core import HomeAssistant, SupportsResponse
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
+from packaging.version import Version
 from pylocal_akuvox import (
     AccessSchedule,
     AkuvoxAuthenticationError,
@@ -29,9 +35,20 @@ from pytest_homeassistant_custom_component.common import (
 )
 
 from custom_components.local_akuvox.const import (
+    CONF_REPORT_FILE_NAME,
+    CONF_REPORT_OPEN_DOOR,
+    CONF_REPORT_OPEN_DOOR_PASSWORD,
+    CONF_REPORT_OPEN_DOOR_USER,
+    CONF_REPORT_SAVE_TO_FILE,
+    CONF_REPORT_WRITE,
     DOMAIN,
     EVENT_SCHEDULE_CHANGED,
     EVENT_USER_CHANGED,
+    SERVICE_RUN_CAPABILITY_REPORT,
+)
+from custom_components.local_akuvox.services import (
+    SERVICE_RUN_CAPABILITY_REPORT_SCHEMA,
+    _register_report_services,
 )
 from custom_components.local_akuvox.validation import (
     is_cloud_provisioned_schedule,
@@ -40,6 +57,170 @@ from custom_components.local_akuvox.validation import (
 from tests.conftest import setup_entry
 
 ENTITY_ID = "lock.testlab_intercom_front_gate"
+REPO_ROOT = Path(__file__).resolve().parents[1]
+
+
+def test_capability_report_dependency_floor() -> None:
+    """Test dependency metadata requires pylocal-akuvox 1.1.0 or newer."""
+    manifest = json.loads(
+        (REPO_ROOT / "custom_components/local_akuvox/manifest.json").read_text(),
+    )
+    pyproject = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text())
+    lock_data = tomllib.loads((REPO_ROOT / "uv.lock").read_text())
+    lock_package = next(
+        package
+        for package in lock_data["package"]
+        if package["name"] == "pylocal-akuvox"
+    )
+
+    assert "pylocal-akuvox>=1.1.0" in manifest["requirements"]
+    assert "pylocal-akuvox>=1.1.0" in pyproject["project"]["dependencies"]
+    assert Version(lock_package["version"]) >= Version("1.1.0")
+    assert Version(importlib.metadata.version("pylocal-akuvox")) >= Version("1.1.0")
+
+    from pylocal_akuvox import run_capability_report
+
+    assert callable(run_capability_report)
+
+
+@pytest.mark.parametrize(
+    ("service_data", "match"),
+    [
+        (
+            {
+                CONF_REPORT_OPEN_DOOR: True,
+                CONF_REPORT_OPEN_DOOR_USER: "relay",
+                CONF_REPORT_OPEN_DOOR_PASSWORD: "secret",
+            },
+            "write",
+        ),
+        (
+            {
+                CONF_REPORT_WRITE: True,
+                CONF_REPORT_OPEN_DOOR: True,
+                CONF_REPORT_OPEN_DOOR_PASSWORD: "secret",
+            },
+            "open_door_user",
+        ),
+        (
+            {
+                CONF_REPORT_WRITE: True,
+                CONF_REPORT_OPEN_DOOR: True,
+                CONF_REPORT_OPEN_DOOR_USER: "relay",
+            },
+            "open_door_password",
+        ),
+        ({CONF_REPORT_OPEN_DOOR_USER: "relay"}, "credentials"),
+        ({CONF_REPORT_OPEN_DOOR_PASSWORD: "secret"}, "credentials"),
+        ({CONF_REPORT_FILE_NAME: "report.json"}, "save_to_file"),
+    ],
+    ids=[
+        "open-door-without-write",
+        "open-door-without-user",
+        "open-door-without-password",
+        "stray-user",
+        "stray-password",
+        "file-name-without-save",
+    ],
+)
+def test_capability_report_schema_rejects_invalid_gates(
+    service_data: dict[str, Any],
+    match: str,
+) -> None:
+    """Test capability report schema rejects unsafe field combinations."""
+    with pytest.raises(vol.Invalid, match=match):
+        SERVICE_RUN_CAPABILITY_REPORT_SCHEMA({**service_data, "entity_id": ENTITY_ID})
+
+
+def test_capability_report_schema_defaults_and_valid_values() -> None:
+    """Test capability report schema supplies safe defaults and valid options."""
+    defaults = SERVICE_RUN_CAPABILITY_REPORT_SCHEMA({"entity_id": ENTITY_ID})
+    assert defaults[CONF_REPORT_WRITE] is False
+    assert defaults[CONF_REPORT_OPEN_DOOR] is False
+    assert defaults[CONF_REPORT_SAVE_TO_FILE] is False
+
+    valid = SERVICE_RUN_CAPABILITY_REPORT_SCHEMA(
+        {
+            "entity_id": ENTITY_ID,
+            CONF_REPORT_WRITE: True,
+            CONF_REPORT_OPEN_DOOR: True,
+            CONF_REPORT_OPEN_DOOR_USER: "relay",
+            CONF_REPORT_OPEN_DOOR_PASSWORD: "secret",
+            CONF_REPORT_SAVE_TO_FILE: True,
+            CONF_REPORT_FILE_NAME: "nested/report.json",
+        }
+    )
+
+    assert valid[CONF_REPORT_WRITE] is True
+    assert valid[CONF_REPORT_OPEN_DOOR] is True
+    assert valid[CONF_REPORT_OPEN_DOOR_USER] == "relay"
+    assert valid[CONF_REPORT_OPEN_DOOR_PASSWORD] == "secret"
+    assert valid[CONF_REPORT_FILE_NAME] == "nested/report.json"
+
+
+def test_register_capability_report_service(
+    hass: HomeAssistant,
+) -> None:
+    """Test capability report registers as a response-only lock service."""
+    with patch(
+        "custom_components.local_akuvox.services.service."
+        "async_register_platform_entity_service"
+    ) as register:
+        _register_report_services(hass)
+
+    register.assert_called_once_with(
+        hass,
+        DOMAIN,
+        SERVICE_RUN_CAPABILITY_REPORT,
+        entity_domain=Platform.LOCK,
+        schema=SERVICE_RUN_CAPABILITY_REPORT_SCHEMA,
+        func=SERVICE_RUN_CAPABILITY_REPORT,
+        supports_response=SupportsResponse.ONLY,
+    )
+
+
+def test_capability_report_metadata_and_translations() -> None:
+    """Test service metadata defines all report fields and safety warnings."""
+    services_yaml = (
+        REPO_ROOT / "custom_components/local_akuvox/services.yaml"
+    ).read_text()
+    strings = json.loads(
+        (REPO_ROOT / "custom_components/local_akuvox/strings.json").read_text(),
+    )
+    translations = json.loads(
+        (REPO_ROOT / "custom_components/local_akuvox/translations/en.json").read_text(),
+    )
+    field_names = {
+        CONF_REPORT_WRITE,
+        CONF_REPORT_OPEN_DOOR,
+        CONF_REPORT_OPEN_DOOR_USER,
+        CONF_REPORT_OPEN_DOOR_PASSWORD,
+        CONF_REPORT_SAVE_TO_FILE,
+        CONF_REPORT_FILE_NAME,
+    }
+
+    assert SERVICE_RUN_CAPABILITY_REPORT in services_yaml
+    strings_fields = strings["services"][SERVICE_RUN_CAPABILITY_REPORT]["fields"]
+    for field_name in field_names:
+        assert field_name in services_yaml
+        assert field_name in strings_fields
+        assert (
+            field_name
+            in translations["services"][SERVICE_RUN_CAPABILITY_REPORT]["fields"]
+        )
+
+    combined_text = json.dumps(
+        {
+            "yaml": services_yaml,
+            "strings": strings["services"][SERVICE_RUN_CAPABILITY_REPORT],
+            "translations": translations["services"][SERVICE_RUN_CAPABILITY_REPORT],
+        },
+    ).lower()
+    for term in ("actuate", "unlock", "authorized", "physically present"):
+        assert term in combined_text
+    for term in ("create", "modify", "verify", "delete", "relay-trigger"):
+        assert term in combined_text
+    assert "1.1.0" in combined_text
 
 
 # Library-to-HA exception mapping pairs:
@@ -82,7 +263,7 @@ async def test_services_registered_on_setup(
     mock_config_entry_data_none: dict[str, Any],
     mock_akuvox_device: AsyncMock,
 ) -> None:
-    """Test that all 18 services are registered after async_setup."""
+    """Test that all entity services are registered after async_setup."""
     await setup_entry(hass, mock_config_entry_data_none)
 
     expected_services = [
@@ -104,6 +285,7 @@ async def test_services_registered_on_setup(
         "add_group",
         "modify_group",
         "delete_group",
+        SERVICE_RUN_CAPABILITY_REPORT,
     ]
     for svc_name in expected_services:
         assert hass.services.has_service(DOMAIN, svc_name), (

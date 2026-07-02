@@ -26,6 +26,7 @@ from custom_components.local_akuvox import async_setup_entry
 from custom_components.local_akuvox.const import (
     CONF_PASSWORD,
     CONFIG_KEY_LOCATION,
+    DATA_CAPABILITY_REPORT_LOCK,
     DOMAIN,
 )
 from tests.conftest import MOCK_MAC
@@ -530,6 +531,66 @@ async def test_unload_cleans_up_empty_registry(
 
     # DOMAIN key should be cleaned up when last entry unloads
     assert DOMAIN not in hass.data
+
+
+async def test_unload_cleans_reserved_report_lock(
+    hass: HomeAssistant,
+    mock_config_entry_data_none: dict[str, Any],
+    mock_akuvox_device: AsyncMock,
+) -> None:
+    """Test final unload removes reserved capability report lock data."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data=mock_config_entry_data_none,
+        unique_id="AA:BB:CC:DD:EE:FF",
+    )
+    entry.add_to_hass(hass)
+
+    await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    hass.data[DOMAIN][DATA_CAPABILITY_REPORT_LOCK] = object()
+
+    await hass.config_entries.async_unload(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert DOMAIN not in hass.data
+
+
+async def test_unload_preserves_other_runtime_data(
+    hass: HomeAssistant,
+    mock_config_entry_data_none: dict[str, Any],
+    mock_akuvox_device: AsyncMock,
+) -> None:
+    """Test final unload removes only the report lock when data remains."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data=mock_config_entry_data_none,
+        unique_id="AA:BB:CC:DD:EE:FF",
+    )
+    entry.add_to_hass(hass)
+
+    await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    hass.data[DOMAIN][DATA_CAPABILITY_REPORT_LOCK] = object()
+    hass.data[DOMAIN]["other_runtime_data"] = {"kept": True}
+
+    await hass.config_entries.async_unload(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert DATA_CAPABILITY_REPORT_LOCK not in hass.data[DOMAIN]
+    assert hass.data[DOMAIN]["other_runtime_data"] == {"kept": True}
+
+
+def test_cleanup_domain_runtime_data_ignores_non_dict(
+    hass: HomeAssistant,
+) -> None:
+    """Test domain cleanup tolerates unexpected non-dict runtime data."""
+    from custom_components.local_akuvox import _cleanup_domain_runtime_data
+
+    hass.data[DOMAIN] = object()
+    _cleanup_domain_runtime_data(hass)
+
+    assert DOMAIN in hass.data
 
 
 # --- async_remove_entry tests ---
