@@ -186,10 +186,16 @@ the fully explicit call passes `open_door=True`, `open_door_user`, and
 - **FR-014**: The returned report MUST include device, authentication,
   observed-schema, test-result, and HTTP-event evidence as produced by the
   upstream v1.1.0 report API.
-- **FR-015**: The service MUST avoid upstream process-wide stdout/stderr
-  redirection by passing a non-`None` no-op `emit` callback, because Home
-  Assistant returns the report dictionary directly and does not need live
-  progress output.
+- **FR-015**: The service MUST pass a no-op `emit` callback when invoking
+  upstream to discard progress text, because Home Assistant returns the report
+  dictionary directly and does not need live progress output. Because upstream
+  v1.1.0 `run_capability_report()` performs process-wide stdout/stderr
+  redirection during every run except `emit is print`, the service MUST
+  serialize concurrent report executions with a single Home Assistant
+  instance-wide lock shared across all `local_akuvox` config entries. The lock
+  MUST be stored under a reserved sub-key within `hass.data[DOMAIN]` (for
+  example, `capability_report_lock`), ignored as a config-entry coordinator,
+  and removed during final unload/cleanup when no config entries remain.
 - **FR-016**: The service MUST handle `AkuvoxUnsupportedError` by reusing the
   repairs issue and structured logging helpers introduced for issue #149.
 - **FR-017**: The service MUST handle `AkuvoxError` subclasses with sanitized,
@@ -208,7 +214,7 @@ the fully explicit call passes `open_door=True`, `open_door_user`, and
 - **FR-023**: The `write` field descriptions MUST warn that write mode creates,
   modifies, verifies, and deletes throwaway device data and may run additional
   upstream relay-trigger or device-config write checks.
-- **FR-024**: The service SHOULD expose a secondary `save_to_file` option that
+- **FR-024**: The service MUST expose a secondary `save_to_file` option that
   defaults to `False`. When enabled, it MUST write the same redacted report to a
   JSON file under the Home Assistant config directory.
 - **FR-025**: If file output is enabled, the service MUST use a deterministic,
