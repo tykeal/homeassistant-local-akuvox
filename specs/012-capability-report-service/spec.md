@@ -186,9 +186,10 @@ the fully explicit call passes `open_door=True`, `open_door_user`, and
 - **FR-014**: The returned report MUST include device, authentication,
   observed-schema, test-result, and HTTP-event evidence as produced by the
   upstream v1.1.0 report API.
-- **FR-015**: The service MUST pass `emit=None` so report progress is not routed
-  to stdout, and MUST serialize capability report runs or otherwise prevent
-  overlapping upstream silent-mode stdout/stderr redirection in Home Assistant.
+- **FR-015**: The service MUST avoid upstream process-wide stdout/stderr
+  redirection by passing a non-`None` no-op `emit` callback, because Home
+  Assistant returns the report dictionary directly and does not need live
+  progress output.
 - **FR-016**: The service MUST handle `AkuvoxUnsupportedError` by reusing the
   repairs issue and structured logging helpers introduced for issue #149.
 - **FR-017**: The service MUST handle `AkuvoxError` subclasses with sanitized,
@@ -267,5 +268,4 @@ upstream write suite for relay-trigger and device-config checks.
   enabling it allows `UNKNOWN` gates to run while confirmed `UNSUPPORTED` gates
   remain blocked.
 - **SC-006**: The implementation stage completes with the full test suite green
-  at 100% coverage, aislop at 100, interrogate at 100, ruff and mypy clean, and
-  hassfest valid.
+  at 100% coverage, interrogate at 100, ruff and mypy clean, and hassfest valid.
