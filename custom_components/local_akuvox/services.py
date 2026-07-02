@@ -32,9 +32,13 @@ from .const import (
     SERVICE_MODIFY_SCHEDULE,
     SERVICE_MODIFY_USER,
     SERVICE_REMOVE_USER_SCHEDULE_RELAY,
+    SERVICE_RUN_CAPABILITY_REPORT,
     VALID_DAYS,
 )
+from .report_service import SERVICE_RUN_CAPABILITY_REPORT_SCHEMA
 from .validation import csv_to_list
+
+__all__ = ["SERVICE_RUN_CAPABILITY_REPORT_SCHEMA"]
 
 SERVICE_LIST_SCHEDULES_SCHEMA = cv.make_entity_service_schema(
     {
@@ -357,9 +361,23 @@ def _register_group_services(hass: HomeAssistant) -> None:
     )
 
 
+def _register_report_services(hass: HomeAssistant) -> None:
+    """Register Akuvox capability report entity services."""
+    service.async_register_platform_entity_service(
+        hass,
+        DOMAIN,
+        SERVICE_RUN_CAPABILITY_REPORT,
+        entity_domain=Platform.LOCK,
+        schema=SERVICE_RUN_CAPABILITY_REPORT_SCHEMA,
+        func=SERVICE_RUN_CAPABILITY_REPORT,
+        supports_response=SupportsResponse.ONLY,
+    )
+
+
 async def async_register_services(hass: HomeAssistant) -> None:
     """Register all Akuvox lock entity services."""
     _register_schedule_services(hass)
     _register_user_services(hass)
     _register_contact_services(hass)
     _register_group_services(hass)
+    _register_report_services(hass)

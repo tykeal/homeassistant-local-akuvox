@@ -5,30 +5,49 @@
 
 from __future__ import annotations
 
+import asyncio
+import json
 import time
+from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock, call, patch
 
 import pytest
+import voluptuous as vol
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
-from pylocal_akuvox import Capability, CapabilityStatus, DeviceCapabilities
+from pylocal_akuvox import (
+    AkuvoxError,
+    AkuvoxUnsupportedError,
+    AkuvoxValidationError,
+    Capability,
+    CapabilityStatus,
+    DeviceCapabilities,
+)
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.local_akuvox.const import (
+    CONF_REPORT_FILE_NAME,
+    CONF_REPORT_OPEN_DOOR,
+    CONF_REPORT_OPEN_DOOR_PASSWORD,
+    CONF_REPORT_OPEN_DOOR_USER,
+    CONF_REPORT_SAVE_TO_FILE,
+    CONF_REPORT_WRITE,
     CONFIG_KEY_LOCATION,
     CONFIG_KEY_RELAY_HOLD_DELAY,
     CONFIG_KEY_RELAY_MODE_SUFFIX,
     CONFIG_KEY_RELAY_NAME,
     CONFIG_KEY_RELAY_PREFIX,
     CONFIG_KEY_RELAY_TYPE_SUFFIX,
+    DATA_CAPABILITY_REPORT_LOCK,
     DEFAULT_HOLD_DELAY_SECONDS,
     DEFAULT_RELAY_MODE,
     DEFAULT_RELAY_TYPE,
     DOMAIN,
 )
-from tests.conftest import MOCK_MAC
+from tests.conftest import MOCK_MAC, setup_entry
 
 
 def _supported_capabilities() -> DeviceCapabilities:
@@ -42,6 +61,619 @@ def _supported_capabilities() -> DeviceCapabilities:
         field_aliases={},
         schema_shapes={},
     )
+
+
+REPORT_ENTITY_ID = "lock.testlab_intercom_front_gate"
+REPORT_PAYLOAD: dict[str, object] = {
+    "device": {"host": "**REDACTED**"},
+    "auth": {"method": "digest"},
+    "observed_schemas": {},
+    "tests": [{"name": "list_users", "status": "passed"}],
+}
+RELAY_TEST_CREDENTIAL = "relay-password"  # noqa: S105
+
+
+async def _call_report_service(
+    hass: HomeAssistant,
+    service_data: dict[str, Any] | None = None,
+) -> Any:
+    """Call the capability report service and return the entity response."""
+    result = await hass.services.async_call(
+        DOMAIN,
+        "run_capability_report",
+        service_data={"entity_id": REPORT_ENTITY_ID, **(service_data or {})},
+        blocking=True,
+        return_response=True,
+    )
+    assert result is not None
+    return result[REPORT_ENTITY_ID]
+
+
+def _fresh_report_device() -> AsyncMock:
+    """Return a mocked fresh report device context."""
+    device = AsyncMock()
+    device.__aenter__ = AsyncMock(return_value=device)
+    device.__aexit__ = AsyncMock(return_value=None)
+    device.attempt_unknown_capability = False
+    return device
+
+
+async def test_capability_report_default_uses_fresh_device(
+    hass: HomeAssistant,
+    mock_config_entry_data_none: dict[str, Any],
+    mock_akuvox_device: AsyncMock,
+) -> None:
+    """Test default capability report uses a fresh entered device."""
+    entry = await setup_entry(hass, mock_config_entry_data_none)
+    report_device = _fresh_report_device()
+    report_mock = AsyncMock(return_value=REPORT_PAYLOAD)
+
+    with (
+        patch("custom_components.local_akuvox.lock._create_device") as create_device,
+        patch(
+            "custom_components.local_akuvox.lock._run_capability_report",
+            report_mock,
+        ),
+    ):
+        create_device.return_value = report_device
+        response = await _call_report_service(hass)
+
+    assert response == {"report": REPORT_PAYLOAD}
+    create_device.assert_called_once_with(entry)
+    report_device.__aenter__.assert_awaited_once()
+    report_device.__aexit__.assert_awaited_once_with(None, None, None)
+    assert report_device.attempt_unknown_capability is False
+    report_mock.assert_awaited_once()
+    call_kwargs = report_mock.call_args.kwargs
+    assert call_kwargs["write"] is False
+    assert call_kwargs["open_door"] is False
+    assert call_kwargs["open_door_user"] is None
+    assert call_kwargs["open_door_password"] is None
+    assert call_kwargs["timeout"] is None
+    assert call_kwargs["redact_stdout"] is True
+    assert callable(call_kwargs["emit"])
+
+
+async def test_capability_report_write_and_open_door_pass_through(
+    hass: HomeAssistant,
+    mock_config_entry_data_none: dict[str, Any],
+    mock_akuvox_device: AsyncMock,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test valid write and OpenDoor options pass only to upstream."""
+    await setup_entry(hass, mock_config_entry_data_none)
+    report_device = _fresh_report_device()
+    secret = RELAY_TEST_CREDENTIAL
+    user = "relay-user"
+    report_mock = AsyncMock(return_value=REPORT_PAYLOAD)
+
+    with (
+        patch(
+            "custom_components.local_akuvox.lock._create_device",
+            return_value=report_device,
+        ),
+        patch(
+            "custom_components.local_akuvox.lock._run_capability_report",
+            report_mock,
+        ),
+        caplog.at_level("DEBUG", logger="custom_components.local_akuvox"),
+    ):
+        response = await _call_report_service(
+            hass,
+            {
+                CONF_REPORT_WRITE: True,
+                CONF_REPORT_OPEN_DOOR: True,
+                CONF_REPORT_OPEN_DOOR_USER: user,
+                CONF_REPORT_OPEN_DOOR_PASSWORD: secret,
+            },
+        )
+
+    assert response == {"report": REPORT_PAYLOAD}
+    call_kwargs = report_mock.call_args.kwargs
+    assert call_kwargs["write"] is True
+    assert call_kwargs["open_door"] is True
+    assert call_kwargs["open_door_user"] == user
+    assert call_kwargs["open_door_password"] == secret
+    assert secret not in str(response)
+    assert secret not in caplog.text
+    assert user not in caplog.text
+
+
+@pytest.mark.parametrize(
+    "service_data",
+    [
+        {CONF_REPORT_OPEN_DOOR: True},
+        {
+            CONF_REPORT_OPEN_DOOR: True,
+            CONF_REPORT_OPEN_DOOR_USER: "relay",
+            CONF_REPORT_OPEN_DOOR_PASSWORD: RELAY_TEST_CREDENTIAL,
+        },
+        {
+            CONF_REPORT_WRITE: True,
+            CONF_REPORT_OPEN_DOOR: True,
+            CONF_REPORT_OPEN_DOOR_USER: "relay",
+        },
+        {CONF_REPORT_OPEN_DOOR_PASSWORD: "secret"},
+    ],
+)
+async def test_capability_report_invalid_gates_skip_device(
+    hass: HomeAssistant,
+    mock_config_entry_data_none: dict[str, Any],
+    mock_akuvox_device: AsyncMock,
+    service_data: dict[str, Any],
+) -> None:
+    """Test invalid OpenDoor combinations fail before fresh device creation."""
+    await setup_entry(hass, mock_config_entry_data_none)
+
+    with (
+        patch("custom_components.local_akuvox.lock._create_device") as create_device,
+        patch(
+            "custom_components.local_akuvox.lock._run_capability_report",
+            AsyncMock(),
+        ) as report_mock,
+        pytest.raises(vol.Invalid),
+    ):
+        await hass.services.async_call(
+            DOMAIN,
+            "run_capability_report",
+            service_data={"entity_id": REPORT_ENTITY_ID, **service_data},
+            blocking=True,
+            return_response=True,
+        )
+
+    create_device.assert_not_called()
+    report_mock.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "match"),
+    [
+        (
+            {
+                CONF_REPORT_OPEN_DOOR: True,
+                CONF_REPORT_OPEN_DOOR_USER: "relay",
+                CONF_REPORT_OPEN_DOOR_PASSWORD: "secret",
+            },
+            "write",
+        ),
+        (
+            {
+                CONF_REPORT_WRITE: True,
+                CONF_REPORT_OPEN_DOOR: True,
+                CONF_REPORT_OPEN_DOOR_PASSWORD: RELAY_TEST_CREDENTIAL,
+            },
+            "user",
+        ),
+        (
+            {
+                CONF_REPORT_WRITE: True,
+                CONF_REPORT_OPEN_DOOR: True,
+                CONF_REPORT_OPEN_DOOR_USER: "relay",
+            },
+            "password",
+        ),
+        ({CONF_REPORT_OPEN_DOOR_USER: "relay"}, "credentials"),
+    ],
+)
+async def test_capability_report_handler_rechecks_invalid_gates(
+    hass: HomeAssistant,
+    mock_config_entry_data_none: dict[str, Any],
+    mock_akuvox_device: AsyncMock,
+    kwargs: dict[str, Any],
+    match: str,
+) -> None:
+    """Test the entity handler defensively rejects unsafe OpenDoor data."""
+    await setup_entry(hass, mock_config_entry_data_none)
+    entity = hass.data["lock"].get_entity(REPORT_ENTITY_ID)
+    assert entity is not None
+
+    with (
+        patch("custom_components.local_akuvox.lock._create_device") as create_device,
+        pytest.raises(ServiceValidationError, match=match),
+    ):
+        await entity.run_capability_report(**kwargs)
+
+    create_device.assert_not_called()
+
+
+async def test_capability_report_attempt_unknown_applied(
+    hass: HomeAssistant,
+    mock_config_entry_data_none: dict[str, Any],
+    mock_akuvox_device: AsyncMock,
+) -> None:
+    """Test attempt_unknown_capability is applied to the fresh report device."""
+    await setup_entry(
+        hass,
+        {**mock_config_entry_data_none, "attempt_unknown_capability": True},
+    )
+    report_device = _fresh_report_device()
+
+    with (
+        patch(
+            "custom_components.local_akuvox.lock._create_device",
+            return_value=report_device,
+        ),
+        patch(
+            "custom_components.local_akuvox.lock._run_capability_report",
+            AsyncMock(return_value=REPORT_PAYLOAD),
+        ),
+    ):
+        await _call_report_service(hass, {CONF_REPORT_WRITE: True})
+
+    assert report_device.attempt_unknown_capability is True
+
+
+@pytest.mark.parametrize(
+    ("exc", "expected"),
+    [
+        (AkuvoxValidationError("bad input"), ServiceValidationError),
+        (
+            AkuvoxUnsupportedError(
+                "blocked",
+                reason="device_unrecognized",
+                capability=Capability.USER_LIST,
+            ),
+            HomeAssistantError,
+        ),
+        (AkuvoxError("offline"), HomeAssistantError),
+    ],
+)
+async def test_capability_report_error_mapping(
+    hass: HomeAssistant,
+    mock_config_entry_data_none: dict[str, Any],
+    mock_akuvox_device: AsyncMock,
+    exc: Exception,
+    expected: type[Exception],
+) -> None:
+    """Test capability report maps upstream errors to controlled surfaces."""
+    entry = await setup_entry(hass, mock_config_entry_data_none)
+    report_device = _fresh_report_device()
+    unsupported_report = AsyncMock()
+
+    with (
+        patch(
+            "custom_components.local_akuvox.lock._create_device",
+            return_value=report_device,
+        ),
+        patch(
+            "custom_components.local_akuvox.lock._run_capability_report",
+            AsyncMock(side_effect=exc),
+        ),
+        patch(
+            "custom_components.local_akuvox.lock.async_report_unsupported_capability",
+            unsupported_report,
+        ),
+        pytest.raises(expected),
+    ):
+        await _call_report_service(hass)
+
+    if isinstance(exc, AkuvoxUnsupportedError):
+        unsupported_report.assert_awaited_once_with(
+            hass,
+            entry,
+            exc,
+            context="capability report service",
+            issue_scope=REPORT_ENTITY_ID,
+        )
+    else:
+        unsupported_report.assert_not_awaited()
+
+
+async def test_capability_report_file_output(
+    hass: HomeAssistant,
+    mock_config_entry_data_none: dict[str, Any],
+    mock_akuvox_device: AsyncMock,
+) -> None:
+    """Test file output writes the redacted report and response path."""
+    await setup_entry(hass, mock_config_entry_data_none)
+    report_device = _fresh_report_device()
+
+    with (
+        patch(
+            "custom_components.local_akuvox.lock._create_device",
+            return_value=report_device,
+        ),
+        patch(
+            "custom_components.local_akuvox.lock._run_capability_report",
+            AsyncMock(return_value=REPORT_PAYLOAD),
+        ),
+    ):
+        response = await _call_report_service(
+            hass,
+            {
+                CONF_REPORT_SAVE_TO_FILE: True,
+                CONF_REPORT_FILE_NAME: f"nested/front-door-{time.time_ns()}.json",
+            },
+        )
+
+    assert response["report"] == REPORT_PAYLOAD
+    assert response["file"]["path"].startswith(
+        "local_akuvox/capability_reports/nested/front-door-"
+    )
+    saved = Path(hass.config.path(response["file"]["path"]))
+    assert saved.read_text(encoding="utf-8") == (
+        json.dumps(REPORT_PAYLOAD, indent=2, sort_keys=True) + "\n"
+    )
+
+
+async def test_capability_report_generated_file_name(
+    hass: HomeAssistant,
+    mock_config_entry_data_none: dict[str, Any],
+    mock_akuvox_device: AsyncMock,
+) -> None:
+    """Test file output generates a config-relative JSON name."""
+    entry = await setup_entry(hass, mock_config_entry_data_none)
+    report_device = _fresh_report_device()
+
+    with (
+        patch(
+            "custom_components.local_akuvox.lock._create_device",
+            return_value=report_device,
+        ),
+        patch(
+            "custom_components.local_akuvox.lock._run_capability_report",
+            AsyncMock(return_value=REPORT_PAYLOAD),
+        ),
+    ):
+        response = await _call_report_service(
+            hass,
+            {CONF_REPORT_SAVE_TO_FILE: True},
+        )
+
+    path = response["file"]["path"]
+    assert path.startswith(f"local_akuvox/capability_reports/{entry.entry_id}-")
+    assert path.endswith(".json")
+    assert Path(hass.config.path(path)).is_file()
+
+
+@pytest.mark.parametrize(
+    "file_name",
+    ["", "/absolute.json", "../escape.json", "nested/../../escape.json", "bad.txt"],
+)
+async def test_capability_report_file_path_validation(
+    hass: HomeAssistant,
+    mock_config_entry_data_none: dict[str, Any],
+    mock_akuvox_device: AsyncMock,
+    file_name: str,
+) -> None:
+    """Test invalid report file paths are rejected before device entry."""
+    await setup_entry(hass, mock_config_entry_data_none)
+
+    with (
+        patch("custom_components.local_akuvox.lock._create_device") as create_device,
+        pytest.raises((vol.Invalid, ServiceValidationError)),
+    ):
+        await _call_report_service(
+            hass,
+            {CONF_REPORT_SAVE_TO_FILE: True, CONF_REPORT_FILE_NAME: file_name},
+        )
+
+    create_device.assert_not_called()
+
+
+async def test_capability_report_file_no_overwrite(
+    hass: HomeAssistant,
+    mock_config_entry_data_none: dict[str, Any],
+    mock_akuvox_device: AsyncMock,
+) -> None:
+    """Test existing report files are never overwritten before device entry."""
+    await setup_entry(hass, mock_config_entry_data_none)
+    existing = Path(
+        hass.config.path("local_akuvox/capability_reports/existing.json"),
+    )
+    existing.parent.mkdir(parents=True, exist_ok=True)
+    existing.write_text("keep\n", encoding="utf-8")
+
+    with (
+        patch("custom_components.local_akuvox.lock._create_device") as create_device,
+        pytest.raises(ServiceValidationError, match="already exists"),
+    ):
+        await _call_report_service(
+            hass,
+            {
+                CONF_REPORT_SAVE_TO_FILE: True,
+                CONF_REPORT_FILE_NAME: "existing.json",
+            },
+        )
+
+    assert existing.read_text(encoding="utf-8") == "keep\n"
+    create_device.assert_not_called()
+
+
+async def test_capability_report_file_rejects_broken_symlink(
+    hass: HomeAssistant,
+    mock_config_entry_data_none: dict[str, Any],
+    mock_akuvox_device: AsyncMock,
+) -> None:
+    """Test broken symlink report targets are treated as existing files."""
+    await setup_entry(hass, mock_config_entry_data_none)
+    file_name = f"broken-link-{time.time_ns()}.json"
+    symlink = Path(
+        hass.config.path(f"local_akuvox/capability_reports/{file_name}"),
+    )
+    symlink.parent.mkdir(parents=True, exist_ok=True)
+    symlink.symlink_to("missing-report.json")
+
+    with (
+        patch("custom_components.local_akuvox.lock._create_device") as create_device,
+        pytest.raises(ServiceValidationError, match="already exists"),
+    ):
+        await _call_report_service(
+            hass,
+            {
+                CONF_REPORT_SAVE_TO_FILE: True,
+                CONF_REPORT_FILE_NAME: file_name,
+            },
+        )
+
+    create_device.assert_not_called()
+
+
+async def test_capability_report_write_failure_is_sanitized(
+    hass: HomeAssistant,
+    mock_config_entry_data_none: dict[str, Any],
+    mock_akuvox_device: AsyncMock,
+) -> None:
+    """Test file write failures use config-relative paths and no secrets."""
+    await setup_entry(hass, mock_config_entry_data_none)
+    report_device = _fresh_report_device()
+
+    with (
+        patch(
+            "custom_components.local_akuvox.lock._create_device",
+            return_value=report_device,
+        ),
+        patch(
+            "custom_components.local_akuvox.lock._run_capability_report",
+            AsyncMock(return_value=REPORT_PAYLOAD),
+        ),
+        patch(
+            "custom_components.local_akuvox.lock._write_report_file",
+            side_effect=HomeAssistantError(
+                "Unable to write report file: local_akuvox/capability_reports/fail.json"
+            ),
+        ),
+        pytest.raises(HomeAssistantError) as err_info,
+    ):
+        await _call_report_service(
+            hass,
+            {CONF_REPORT_SAVE_TO_FILE: True, CONF_REPORT_FILE_NAME: "fail.json"},
+        )
+
+    error_text = str(err_info.value)
+    assert "local_akuvox/capability_reports/fail.json" in error_text
+    assert hass.config.path() not in error_text
+
+
+def test_capability_report_file_helper_errors(
+    hass: HomeAssistant,
+) -> None:
+    """Test report file helper validation and write error branches."""
+    from custom_components.local_akuvox.lock import (
+        _prepare_report_file_target,
+        _resolve_report_file_target,
+        _write_report_file,
+    )
+
+    with pytest.raises(ServiceValidationError, match="empty"):
+        _resolve_report_file_target(hass.config.path(), "entry", "")
+
+    base = Path(hass.config.path("local_akuvox/capability_reports"))
+    base.mkdir(parents=True, exist_ok=True)
+    outside = Path(hass.config.path("outside_reports"))
+    outside.mkdir(parents=True, exist_ok=True)
+    symlink = base / "escape"
+    if not symlink.exists():
+        symlink.symlink_to(outside, target_is_directory=True)
+    with pytest.raises(ServiceValidationError, match="inside"):
+        _resolve_report_file_target(hass.config.path(), "entry", "escape/report.json")
+
+    target = Path(hass.config.path("local_akuvox/capability_reports/helper.json"))
+    if target.exists() or target.is_symlink():
+        target.unlink()
+    with (
+        patch.object(Path, "mkdir", side_effect=OSError("denied")),
+        pytest.raises(HomeAssistantError, match="prepare"),
+    ):
+        _prepare_report_file_target(
+            target,
+            "local_akuvox/capability_reports/x.json",
+        )
+
+    target.write_text("exists\n", encoding="utf-8")
+    with pytest.raises(ServiceValidationError, match="already exists"):
+        _write_report_file(
+            target,
+            "local_akuvox/capability_reports/helper.json",
+            REPORT_PAYLOAD,
+        )
+    target.unlink()
+    target.symlink_to("missing-helper.json")
+    with pytest.raises(ServiceValidationError, match="already exists"):
+        _write_report_file(
+            target,
+            "local_akuvox/capability_reports/helper.json",
+            REPORT_PAYLOAD,
+        )
+    with pytest.raises(HomeAssistantError, match="write report"):
+        _write_report_file(
+            Path(hass.config.path("missing/parent/report.json")),
+            "missing/parent/report.json",
+            REPORT_PAYLOAD,
+        )
+
+
+async def test_capability_report_requires_config_entry(
+    hass: HomeAssistant,
+    mock_device_info: Any,
+) -> None:
+    """Test report service requires the entity coordinator config entry."""
+    from custom_components.local_akuvox.coordinator import (
+        AkuvoxCoordinatorData,
+        AkuvoxDataUpdateCoordinator,
+    )
+    from custom_components.local_akuvox.lock import AkuvoxLockEntity
+
+    coordinator = AkuvoxDataUpdateCoordinator(hass=hass, device=AsyncMock())
+    coordinator.data = AkuvoxCoordinatorData(
+        device_info=mock_device_info,
+        relay_status={"RelayA": 0},
+        device_name="Test",
+        relay_configs={},
+    )
+    entity = AkuvoxLockEntity(coordinator, "RelayA")
+    entity.hass = hass
+
+    with pytest.raises(HomeAssistantError, match="config entry"):
+        await entity.run_capability_report()
+
+
+async def test_capability_report_instance_wide_serialization(
+    hass: HomeAssistant,
+    mock_config_entry_data_none: dict[str, Any],
+    mock_akuvox_device: AsyncMock,
+) -> None:
+    """Test the shared Home Assistant report lock serializes executions."""
+    await setup_entry(hass, mock_config_entry_data_none)
+    first = _fresh_report_device()
+    second = _fresh_report_device()
+    release_first = asyncio.Event()
+    first_started = asyncio.Event()
+    active = 0
+    max_active = 0
+
+    async def report_side_effect(*_args: Any, **_kwargs: Any) -> dict[str, object]:
+        """Track concurrent upstream report executions."""
+        nonlocal active, max_active
+        active += 1
+        max_active = max(max_active, active)
+        if active == 1:
+            first_started.set()
+            await release_first.wait()
+        active -= 1
+        return REPORT_PAYLOAD
+
+    with (
+        patch(
+            "custom_components.local_akuvox.lock._create_device",
+            side_effect=[first, second],
+        ),
+        patch(
+            "custom_components.local_akuvox.lock._run_capability_report",
+            AsyncMock(side_effect=report_side_effect),
+        ),
+    ):
+        task_one = asyncio.create_task(_call_report_service(hass))
+        await first_started.wait()
+        task_two = asyncio.create_task(_call_report_service(hass))
+        await asyncio.sleep(0)
+        assert not task_one.done()
+        assert not task_two.done()
+        release_first.set()
+        await asyncio.gather(task_one, task_two)
+
+    assert max_active == 1
+    assert DATA_CAPABILITY_REPORT_LOCK in hass.data[DOMAIN]
 
 
 async def test_entity_unique_id(

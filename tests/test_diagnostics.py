@@ -45,6 +45,14 @@ from tests.conftest import (
 )
 
 
+def test_diagnostics_do_not_import_report_service() -> None:
+    """Test diagnostics stay passive and do not call capability reports."""
+    import custom_components.local_akuvox.diagnostics as diagnostics
+
+    assert not hasattr(diagnostics, "run_capability_report")
+    assert not hasattr(diagnostics, "_run_capability_report")
+
+
 async def test_diagnostics_sanitizes_entry_and_current_capabilities(
     hass: HomeAssistant,
     mock_device_info: Any,

@@ -7,11 +7,14 @@
 
 from __future__ import annotations
 
+import asyncio
 import datetime as dt
+import json
 import logging
 import re
 import time
 from collections.abc import Callable, Coroutine
+from pathlib import Path
 from typing import Any, cast
 
 from homeassistant.components.lock import LockEntity
@@ -29,13 +32,25 @@ from pylocal_akuvox import (
     CapabilityStatus,
     User,
 )
+from pylocal_akuvox import (
+    run_capability_report as _run_capability_report,
+)
 
+from . import _create_device
 from .capability_support import (
+    apply_capability_options,
     async_report_unsupported_capability,
     get_effective_attempt_unknown,
     is_capability_usable,
 )
 from .const import (
+    CONF_REPORT_FILE_NAME,
+    CONF_REPORT_OPEN_DOOR,
+    CONF_REPORT_OPEN_DOOR_PASSWORD,
+    CONF_REPORT_OPEN_DOOR_USER,
+    CONF_REPORT_SAVE_TO_FILE,
+    CONF_REPORT_WRITE,
+    DATA_CAPABILITY_REPORT_LOCK,
     DEFAULT_HOLD_DELAY_SECONDS,
     DEFAULT_RELAY_MODE,
     DEFAULT_RELAY_TYPE,
@@ -48,6 +63,7 @@ from .const import (
 )
 from .coordinator import AkuvoxDataUpdateCoordinator
 from .entity import AkuvoxEntity
+from .report_service import report_open_door_validation_error
 from .validation import (
     build_schedule_relay,
     check_required_schedule_fields,
@@ -68,6 +84,103 @@ _RELAY_REFRESH_BUFFER_SECONDS = 1
 
 # Akuvox devices expose relays as "RelayA", "RelayB", etc.
 # with a single uppercase letter A-Z suffix.
+
+
+def _discard_report_progress(_line: str) -> None:
+    """Discard upstream capability report progress text."""
+
+
+def _capability_report_lock(hass: HomeAssistant) -> asyncio.Lock:
+    """Return the Home Assistant instance-wide report execution lock."""
+    domain_data = hass.data.setdefault(DOMAIN, {})
+    lock = domain_data.get(DATA_CAPABILITY_REPORT_LOCK)
+    if isinstance(lock, asyncio.Lock):
+        return lock
+    lock = asyncio.Lock()
+    domain_data[DATA_CAPABILITY_REPORT_LOCK] = lock
+    return lock
+
+
+def _generated_report_file_name(entry_id: str) -> str:
+    """Return a collision-resistant default report file name."""
+    stamp = dt.datetime.now(dt.UTC).strftime("%Y%m%dT%H%M%S%fZ")
+    return f"{entry_id}-{stamp}.json"
+
+
+def _resolve_report_file_target(
+    config_dir: str,
+    entry_id: str,
+    file_name: str | None,
+) -> tuple[Path, str]:
+    """Resolve and validate a config-relative report file target."""
+    base_relative = Path(DOMAIN) / "capability_reports"
+    base_dir = Path(config_dir) / base_relative
+    base_resolved = base_dir.resolve(strict=False)
+    if file_name is None:
+        relative_name = Path(_generated_report_file_name(entry_id))
+    else:
+        if not file_name.strip():
+            raise ServiceValidationError("file_name must not be empty")
+        relative_name = Path(file_name)
+        if relative_name.is_absolute():
+            raise ServiceValidationError("file_name must be relative")
+        if ".." in relative_name.parts:
+            raise ServiceValidationError("file_name must not contain '..'")
+        if relative_name.suffix != ".json":
+            raise ServiceValidationError("file_name must end with .json")
+
+    raw_target = base_dir / relative_name
+    response_path = (base_relative / relative_name).as_posix()
+    if raw_target.is_symlink():
+        raise ServiceValidationError(f"Report file already exists: {response_path}")
+    target = raw_target.resolve(strict=False)
+    try:
+        target.relative_to(base_resolved)
+    except ValueError as err:
+        raise ServiceValidationError(
+            f"file_name must stay inside {base_relative.as_posix()}"
+        ) from err
+    return target, response_path
+
+
+def _prepare_report_file_target(target: Path, response_path: str) -> None:
+    """Create validated report directories and reject existing targets."""
+    try:
+        target.parent.mkdir(parents=True, exist_ok=True)
+    except OSError as err:
+        raise HomeAssistantError(
+            f"Unable to prepare report directory for {response_path}"
+        ) from err
+    if target.exists() or target.is_symlink():
+        raise ServiceValidationError(f"Report file already exists: {response_path}")
+
+
+def _write_report_file(
+    target: Path,
+    response_path: str,
+    report: dict[str, object],
+) -> None:
+    """Write a redacted capability report JSON file without overwriting."""
+    try:
+        if target.is_symlink():
+            raise FileExistsError
+        with target.open("x", encoding="utf-8") as report_file:
+            json.dump(report, report_file, indent=2, sort_keys=True)
+            report_file.write("\n")
+    except FileExistsError as err:
+        raise ServiceValidationError(
+            f"Report file already exists: {response_path}"
+        ) from err
+    except OSError as err:
+        raise HomeAssistantError(
+            f"Unable to write report file: {response_path}"
+        ) from err
+
+
+def _validate_report_execution_options(kwargs: dict[str, Any]) -> None:
+    """Validate capability report options before side effects."""
+    if open_door_error := report_open_door_validation_error(kwargs):
+        raise ServiceValidationError(open_door_error[1])
 
 
 def _relay_key_to_number(relay_key: str) -> int | None:
@@ -636,6 +749,91 @@ class AkuvoxLockEntity(AkuvoxEntity, LockEntity):
             self._delayed_refresh_cancel()
             self._delayed_refresh_cancel = None
         await super().async_will_remove_from_hass()
+
+    async def run_capability_report(self, **kwargs: Any) -> ServiceResponse:
+        """Run and return the redacted upstream capability report.
+
+        Args:
+            **kwargs: Validated service call data for report generation.
+
+        Returns:
+            Response data containing the upstream redacted report and
+            optional config-relative file metadata.
+
+        Raises:
+            ServiceValidationError: If service data, device validation, or
+                report file validation fails.
+            HomeAssistantError: If device communication, unsupported
+                capabilities, or report file writing fails.
+
+        """
+        _validate_report_execution_options(kwargs)
+        entry = getattr(self.coordinator, "config_entry", None)
+        if entry is None:
+            raise HomeAssistantError("Capability report requires a config entry")
+
+        file_target: tuple[Path, str] | None = None
+        if kwargs.get(CONF_REPORT_SAVE_TO_FILE, False):
+            file_target = _resolve_report_file_target(
+                self.hass.config.path(),
+                entry.entry_id,
+                kwargs.get(CONF_REPORT_FILE_NAME),
+            )
+            await self.hass.async_add_executor_job(
+                _prepare_report_file_target,
+                file_target[0],
+                file_target[1],
+            )
+
+        device = _create_device(entry)
+        try:
+            async with device:
+                apply_capability_options(
+                    device,
+                    attempt_unknown=get_effective_attempt_unknown(entry),
+                )
+                async with _capability_report_lock(self.hass):
+                    report = await _run_capability_report(
+                        device,
+                        write=bool(kwargs.get(CONF_REPORT_WRITE, False)),
+                        open_door=bool(kwargs.get(CONF_REPORT_OPEN_DOOR, False)),
+                        open_door_user=kwargs.get(CONF_REPORT_OPEN_DOOR_USER),
+                        open_door_password=kwargs.get(CONF_REPORT_OPEN_DOOR_PASSWORD),
+                        timeout=None,
+                        redact_stdout=True,
+                        emit=_discard_report_progress,
+                    )
+        except AkuvoxValidationError as err:
+            raise ServiceValidationError(
+                "run_capability_report: validation failed"
+            ) from err
+        except AkuvoxUnsupportedError as err:
+            await async_report_unsupported_capability(
+                self.hass,
+                entry,
+                err,
+                context="capability report service",
+                issue_scope=self.entity_id or self._relay_key,
+            )
+            raise HomeAssistantError(
+                "run_capability_report failed: unsupported Akuvox capability"
+            ) from err
+        except AkuvoxError as err:
+            raise HomeAssistantError(
+                "run_capability_report failed while communicating with the "
+                "Akuvox device"
+            ) from err
+
+        response: dict[str, object] = {"report": report}
+        if file_target is not None:
+            await self.hass.async_add_executor_job(
+                _write_report_file,
+                file_target[0],
+                file_target[1],
+                report,
+            )
+            response["file"] = {"path": file_target[1]}
+        return cast(ServiceResponse, response)
 
     async def list_schedules(self, **kwargs: Any) -> ServiceResponse:
         """Return all access schedules from the device.

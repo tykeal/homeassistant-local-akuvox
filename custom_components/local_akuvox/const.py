@@ -88,6 +88,16 @@ SERVICE_LIST_GROUPS: Final = "list_groups"
 SERVICE_ADD_GROUP: Final = "add_group"
 SERVICE_MODIFY_GROUP: Final = "modify_group"
 SERVICE_DELETE_GROUP: Final = "delete_group"
+SERVICE_RUN_CAPABILITY_REPORT: Final = "run_capability_report"
+
+# Capability report service keys
+CONF_REPORT_WRITE: Final = "write"
+CONF_REPORT_OPEN_DOOR: Final = "open_door"
+CONF_REPORT_OPEN_DOOR_USER: Final = "open_door_user"
+CONF_REPORT_OPEN_DOOR_PASSWORD: Final = "open_door_password"  # noqa: S105
+CONF_REPORT_SAVE_TO_FILE: Final = "save_to_file"
+CONF_REPORT_FILE_NAME: Final = "file_name"
+DATA_CAPABILITY_REPORT_LOCK: Final = "capability_report_lock"
 
 # Event names
 EVENT_SCHEDULE_CHANGED: Final = "local_akuvox_schedule_changed"
