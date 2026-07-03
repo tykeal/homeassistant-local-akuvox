@@ -46,7 +46,7 @@
       },
       "capabilities": {
         "title": "Capability safety",
-        "description": "pylocal-akuvox 1.1.0 blocks unrecognized or unknown device capabilities by default. Enable this only if you accept attempting unproven operations; confirmed unsupported capabilities remain blocked.",
+        "description": "pylocal-akuvox 1.1.1 blocks unrecognized or unknown device capabilities by default. Enable this only if you accept attempting unproven operations; confirmed unsupported capabilities remain blocked.",
         "data": {
           "attempt_unknown_capability": "Attempt unknown capabilities"
         },
@@ -424,7 +424,7 @@
     },
     "run_capability_report": {
       "name": "Run capability report",
-      "description": "Return the redacted pylocal-akuvox 1.1.0 capability report. Use the response or optional JSON file for upstream new-device issues.",
+      "description": "Return the redacted pylocal-akuvox 1.1.1 capability report. Use the response or optional JSON file for upstream new-device issues.",
       "fields": {
         "write": {
           "name": "Run write tests",
@@ -436,7 +436,7 @@
         },
         "open_door_user": {
           "name": "OpenDoor username",
-          "description": "Relay HTTP username required only with OpenDoor. The integration does not store, return, save, or log this value; pylocal-akuvox 1.1.0 debug logging may include the username."
+          "description": "Relay HTTP username required only with OpenDoor. The integration does not store, return, save, or log this value; pylocal-akuvox 1.1.1 debug logging may include the username."
         },
         "open_door_password": {
           "name": "OpenDoor password",

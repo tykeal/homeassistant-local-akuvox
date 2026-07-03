@@ -17,7 +17,7 @@ Add a response-only Home Assistant action named
 `local_akuvox.run_capability_report` for Local Akuvox lock entities. The service
 will create a fresh `pylocal-akuvox` device from the entity config entry, enter it
 with the same option-application pattern used by diagnostics, call
-`pylocal_akuvox.run_capability_report()` from `pylocal-akuvox>=1.1.0`, hard-gate
+`pylocal_akuvox.run_capability_report()` from `pylocal-akuvox>=1.1.1`, hard-gate
 write-mode and OpenDoor inputs, return the upstream redacted report dictionary,
 and optionally save the same redacted JSON beneath the Home Assistant config
 directory.
@@ -26,7 +26,7 @@ directory.
 
 **Language/Version**: Python >=3.13.2, with tooling targeted at Python 3.13 and
 CI validation covering Python 3.13 and 3.14 **Primary Dependencies**: Home
-Assistant custom integration APIs, `pylocal-akuvox>=1.1.0`, voluptuous service
+Assistant custom integration APIs, `pylocal-akuvox>=1.1.1`, voluptuous service
 schemas, pytest Home Assistant custom component helpers **Storage**: Home
 Assistant config entry data/options plus optional JSON report files under the
 Home Assistant config directory; no database or persistent secrets **Testing**:
@@ -82,13 +82,13 @@ specs/012-capability-report-service/
 
 ```text
 .pre-commit-config.yaml             # Keep validation hooks; update comments or
-                                     # dependency assumptions if v1.1.0 requires it
-pyproject.toml                      # Bump pylocal-akuvox dependency to >=1.1.0
+                                     # dependency assumptions if v1.1.1 requires it
+pyproject.toml                      # Bump pylocal-akuvox dependency to >=1.1.1
                                      # and update stale dependency comments
 uv.lock                             # Refresh after dependency bump
 
 custom_components/local_akuvox/
-├── manifest.json                   # Bump runtime requirement to >=1.1.0
+├── manifest.json                   # Bump runtime requirement to >=1.1.1
 ├── const.py                        # Add SERVICE_RUN_CAPABILITY_REPORT and
 │                                    # service/file-output field constants
 ├── __init__.py                     # Existing async_setup remains the service
@@ -110,10 +110,10 @@ custom_components/local_akuvox/
 │                                    # save_to_file/file_name, and warnings
 ├── strings.json                    # Add service labels, field descriptions,
 │                                    # OpenDoor warnings, validation strings, and
-│                                    # update pylocal-akuvox version text to 1.1.0
+│                                    # update pylocal-akuvox version text to 1.1.1
 ├── translations/
 │   └── en.json                     # Mirror user-facing service strings and the
-│                                    # pylocal-akuvox 1.1.0 version text
+│                                    # pylocal-akuvox 1.1.1 version text
 └── lock.py                         # Add the entity service method that creates
                                      # a fresh device, calls run_capability_report,
                                      # returns response data, and handles errors

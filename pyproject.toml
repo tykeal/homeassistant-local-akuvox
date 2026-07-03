@@ -12,7 +12,7 @@ description = "Home Assistant custom integration for Akuvox intercom devices"
 requires-python = ">=3.13.2"
 dependencies = [
     "homeassistant>=2026.2.0",
-    "pylocal-akuvox>=1.1.0",
+    "pylocal-akuvox>=1.1.1",
 ]
 
 [project.optional-dependencies]
@@ -35,7 +35,7 @@ dev = [
 ]
 
 # Mirror Home Assistant's constrained aiohttp versions so uv can still
-# lock and test against pylocal-akuvox 1.1.0.
+# lock and test against pylocal-akuvox 1.1.1.
 [tool.uv]
 override-dependencies = [
     "aiohttp==3.13.3; python_full_version < '3.14.2'",
