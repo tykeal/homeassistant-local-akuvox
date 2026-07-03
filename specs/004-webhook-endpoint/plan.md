@@ -35,9 +35,9 @@ through the generic event path without code changes.
 
 ## Technical Context
 
-**Language/Version**: Python ≥3.13.2
+**Language/Version**: Python ≥3.14.2
 **Primary Dependencies**: pylocal-akuvox ≥0.2.3 (device
-communication, `set_device_config()`), homeassistant ≥2026.2.0
+communication, `set_device_config()`), homeassistant ≥2026.7.0
 (webhook infrastructure via `homeassistant.components.webhook`)
 **Storage**: Home Assistant config entries (webhook_id and
 webhook_enabled persisted in entry data)

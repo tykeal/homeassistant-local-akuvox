@@ -23,7 +23,7 @@ coverage, and Home Assistant public APIs.
 
 ## Technical Context
 
-**Language/Version**: Python 3.13 (type-annotated, mypy-checked) **Primary
+**Language/Version**: Python >=3.14.2 (type-annotated, mypy-checked) **Primary
 Dependencies**: Home Assistant custom integration APIs, `pylocal-akuvox`
 **Storage**: N/A (runtime state comes from the Akuvox device API) **Testing**:
 pytest full suite with 100% pass requirement, interrogate 100% docstring

@@ -20,7 +20,7 @@ focused modules:
 
 ## Prerequisites
 
-- Python ≥3.13.2
+- Python ≥3.14.2
 - `uv` package manager
 - Project dependencies installed: `uv sync --group dev`
 

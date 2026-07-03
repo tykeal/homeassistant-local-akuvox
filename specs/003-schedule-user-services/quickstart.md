@@ -11,7 +11,7 @@ SPDX-License-Identifier: Apache-2.0
 ## Prerequisites
 
 - Existing local-akuvox integration (specs 001 + 002 implemented)
-- Python ≥3.13.2
+- Python ≥3.14.2
 - uv package manager
 - pylocal-akuvox ≥0.2.3
 

@@ -31,9 +31,9 @@ unlock action and refined in spec 004.
 
 ## Technical Context
 
-**Language/Version**: Python ≥3.13.2
+**Language/Version**: Python ≥3.14.2
 **Primary Dependencies**: pylocal-akuvox ≥0.2.3 (device
-communication via `trigger_relay()`), homeassistant ≥2026.2.0
+communication via `trigger_relay()`), homeassistant ≥2026.7.0
 (LockEntity, coordinator, async helpers)
 **Storage**: N/A (uses existing coordinator data and entity state)
 **Testing**: pytest, pytest-homeassistant-custom-component,

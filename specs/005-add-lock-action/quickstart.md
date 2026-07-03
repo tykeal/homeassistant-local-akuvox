@@ -20,7 +20,7 @@ mode:
 
 - Existing Akuvox integration setup with at least one relay
   configured
-- Home Assistant ≥2026.2.0
+- Home Assistant ≥2026.7.0
 - pylocal-akuvox ≥0.2.3
 
 ## Files Modified
