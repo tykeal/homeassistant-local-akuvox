@@ -19,7 +19,7 @@ designed for Home Assistant integration.
 
 - **Package**: pylocal-akuvox
 - **Python**: ≥3.14 (required by pylocal-akuvox)
-- **Dependencies**: aiohttp ≥3.13
+- **Dependencies**: aiohttp ≥3.14
 - **License**: Apache-2.0
 
 ### Public API Surface (Integration-Relevant)

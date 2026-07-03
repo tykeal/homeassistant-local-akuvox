@@ -22,7 +22,7 @@ names, schemas, entity domain, handler function names, and response semantics.
 
 ## Technical Context
 
-**Language/Version**: Python 3.13 (type-annotated, mypy-checked) **Primary
+**Language/Version**: Python >=3.14.2 (type-annotated, mypy-checked) **Primary
 Dependencies**: Home Assistant custom integration APIs, `pylocal-akuvox`,
 voluptuous service schemas **Storage**: N/A (service registration only; no data
 persistence) **Testing**: pytest full suite with 100% pass requirement,

@@ -32,7 +32,7 @@ cloud services required.
 
 ## Requirements
 
-- Home Assistant 2026.2.0 or later
+- Home Assistant 2026.7.0 or later
 - An Akuvox intercom or access control device with HTTP API access
   (e.g., E21V, R29, or similar models)
 - Network connectivity between Home Assistant and the device

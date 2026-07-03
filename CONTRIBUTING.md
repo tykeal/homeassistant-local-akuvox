@@ -10,7 +10,7 @@ to set up your development environment, run tests, and submit changes.
 
 ## Prerequisites
 
-- Python 3.13.2 or later
+- Python 3.14.2 or later
 - [uv](https://docs.astral.sh/uv/) for dependency management
 - [pre-commit](https://pre-commit.com/) for automated code quality
   checks

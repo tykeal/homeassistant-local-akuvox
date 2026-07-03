@@ -7,7 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 
 ## Requirements
 
-- Home Assistant 2026.2.0 or later
+- Home Assistant 2026.7.0 or later
 - An Akuvox intercom or access control device with HTTP API enabled
   (see [Device Setup](Device-Setup))
 - Network connectivity between Home Assistant and the device

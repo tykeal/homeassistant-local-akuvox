@@ -22,14 +22,15 @@ availability plus diagnostics from the effective `DeviceCapabilities` snapshot.
 
 ## Technical Context
 
-**Language/Version**: Python >=3.13.2, with tooling targeted at Python 3.13 and
-CI validation covering Python 3.13 and 3.14 **Primary
-Dependencies**: Home Assistant custom integration APIs, `pylocal-akuvox>=1.0.0`,
-voluptuous, pytest Home Assistant custom component helpers **Storage**: Home
-Assistant config entry data/options only; no database or persistent integration
-storage beyond repairs issue registry state **Testing**: pytest with 100%
-coverage, interrogate 100% docstring coverage, ruff check/format, mypy strict
-mode, reuse, markdownlint, gitlint, and aislop `ci` with failBelow 100
+**Language/Version**: Python >=3.14.2, with tooling targeted at Python 3.14 and
+CI validation covering Python 3.14
+**Primary Dependencies**: Home Assistant custom integration APIs,
+`pylocal-akuvox>=1.0.0`, voluptuous, pytest Home Assistant custom component
+helpers **Storage**: Home Assistant config entry data/options only; no database
+or persistent integration storage beyond repairs issue registry state
+**Testing**: pytest with 100% coverage, interrogate 100% docstring coverage,
+ruff check/format, mypy strict mode, reuse, markdownlint, gitlint, and aislop
+`ci` with failBelow 100
 **Target Platform**: Home Assistant custom integration running as
 `custom_components/local_akuvox` **Project Type**: Single-project Python custom
 component with tests under `tests/` and speckit artifacts under `specs/`

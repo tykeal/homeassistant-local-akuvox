@@ -22,8 +22,8 @@ pass with only import path updates.
 
 ## Technical Context
 
-- **Language/Version**: Python ≥3.13.2
-- **Primary Dependencies**: homeassistant ≥2026.2.0, pylocal-akuvox ≥0.4.2,
+- **Language/Version**: Python ≥3.14.2
+- **Primary Dependencies**: homeassistant ≥2026.7.0, pylocal-akuvox ≥0.4.2,
   voluptuous (bundled with HA)
 - **Storage**: N/A (config entries managed by Home Assistant core)
 - **Testing**: pytest + pytest-homeassistant-custom-component +

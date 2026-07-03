@@ -23,7 +23,7 @@ MUST be HACS-compatible for installation.
 
 ## Technical Context
 
-**Language/Version**: Python ≥3.13.2
+**Language/Version**: Python ≥3.14.2
 **Primary Dependencies**: pylocal-akuvox (device communication),
 homeassistant (HA core framework)
 **Storage**: Home Assistant config entries (no external database)

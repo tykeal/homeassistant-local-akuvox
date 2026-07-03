@@ -10,7 +10,7 @@ SPDX-License-Identifier: Apache-2.0
 
 ## Prerequisites
 
-- Python ≥3.13.2
+- Python ≥3.14.2
 - uv package manager
 - Existing local-akuvox integration (specs 001-003 implemented)
 - Home Assistant development environment (or
