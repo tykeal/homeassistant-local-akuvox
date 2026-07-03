@@ -12,7 +12,7 @@ SPDX-License-Identifier: Apache-2.0
 ## Prerequisites
 
 - Local Akuvox integration is configured and has at least one `lock` entity.
-- The implementation stage has bumped `pylocal-akuvox` to `>=1.1.0`.
+- The implementation stage has bumped `pylocal-akuvox` to `>=1.1.1`.
 - For unrecognized devices, enable **Attempt unknown capabilities** only if you
   intentionally accept trying upstream `UNKNOWN` capability gates. Confirmed
   `UNSUPPORTED` capabilities remain blocked.
@@ -71,7 +71,7 @@ data:
 
 OpenDoor can physically actuate a relay, unlock a door, or affect access. It is
 valid only when all fields below are supplied in the same service call.
-`pylocal-akuvox` v1.1.0 redacts the OpenDoor password in its debug logging but
+`pylocal-akuvox` v1.1.1 redacts the OpenDoor password in its debug logging but
 can include the OpenDoor username; do not enable debug logging around OpenDoor
 runs if that username is sensitive unless Stage 5 has consumed an upstream
 redaction fix.
