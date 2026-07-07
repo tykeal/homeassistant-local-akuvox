@@ -41,7 +41,7 @@ ______________________________________________________________________
 
 ## Phase 1: Setup and Dependency Floor
 
-**Purpose**: Re-confirm live source facts, then make the v1.2.0 report API
+**Purpose**: Re-confirm live source facts, then make the v1.3.0 report API
 importable before any tests import the new symbol.
 
 - [X] T001 [US1] Re-confirm the checked-out upstream signature and export in
@@ -67,23 +67,23 @@ importable before any tests import the new symbol.
   require serialized service execution. Covers FR-003, FR-015, SC-001,
   SC-002, SC-003, and SC-006.
 - [X] T002 [US1] Raise the `pylocal-akuvox` floor from `>=1.0.0` to
-  `>=1.2.0` in `custom_components/local_akuvox/manifest.json`,
+  `>=1.3.0` in `custom_components/local_akuvox/manifest.json`,
   `pyproject.toml`, the `pyproject.toml` comments that mention v1.0.0,
   and any `.pre-commit-config.yaml` mypy hook dependency or comment that
   constrains the library version. Covers FR-018 and SC-006.
 - [X] T003 [US1] Run `uv sync` from the repository root, commit the
   resulting `uv.lock` resolution in the implementation PR, and verify
-  `uv lock --check` accepts `pylocal-akuvox>=1.2.0`. Covers FR-018 and
+  `uv lock --check` accepts `pylocal-akuvox>=1.3.0`. Covers FR-018 and
   SC-006.
 - [X] T004 [P] [US1] Add dependency/import regression tests in the
   existing pin or service test location, such as `tests/test_services.py`,
   proving `manifest.json`, `pyproject.toml`, `uv.lock`, and the runtime
-  import all resolve `pylocal-akuvox>=1.2.0` and export
+  import all resolve `pylocal-akuvox>=1.3.0` and export
   `run_capability_report`. This follows the documented dependency-floor TDD
   exception because T002 and T003 must make the symbol importable first.
   Covers FR-003, FR-018, FR-027, and SC-006.
 
-**Checkpoint**: The v1.2.0 API is importable and live-source facts are
+**Checkpoint**: The v1.3.0 API is importable and live-source facts are
 known before service tests import the symbol.
 
 ______________________________________________________________________
@@ -268,7 +268,7 @@ records the returned redacted report.
 - [X] T024 [US3] Ensure `custom_components/local_akuvox/services.py` and
   `custom_components/local_akuvox/lock.py` enforce OpenDoor's hard gate,
   reject unused relay credentials when `open_door=False`, pass valid relay
-  credentials only to upstream, and document the upstream v1.2.0 username
+  credentials only to upstream, and document the upstream v1.3.0 username
   debug-log caveat where user-facing text discusses OpenDoor. Covers FR-005
   through FR-009, FR-021, FR-027, SC-003, and SC-004.
 
@@ -352,10 +352,10 @@ examples, and strong physical-safety warnings.
   strong write/OpenDoor warnings matching the runtime schema. Covers FR-019,
   FR-021, FR-023 through FR-025, and SC-003.
 - [X] T034 [US1] Add matching service labels, field labels,
-  descriptions, validation text, and pylocal-akuvox v1.2.0 capability text
+  descriptions, validation text, and pylocal-akuvox v1.3.0 capability text
   to `custom_components/local_akuvox/strings.json`. Covers FR-020,
   FR-021, FR-023, FR-027, SC-003, SC-004, and SC-006.
-- [X] T035 [US1] Mirror the new service strings and v1.2.0 capability text
+- [X] T035 [US1] Mirror the new service strings and v1.3.0 capability text
   in `custom_components/local_akuvox/translations/en.json`, keeping raw
   OpenDoor credentials out of translated errors and repairs placeholders.
   Covers FR-020, FR-021, FR-023, FR-027, SC-003, SC-004, and SC-006.
@@ -483,7 +483,7 @@ ______________________________________________________________________
 
 ### MVP First
 
-1. Complete the v1.2.0 pin bump and lock refresh.
+1. Complete the v1.3.0 pin bump and lock refresh.
 2. Add constants, schema tests, and hard-gate schema validation.
 3. Add mocks and the default read-only service tests.
 4. Implement the fresh-device handler and lock service registration.
