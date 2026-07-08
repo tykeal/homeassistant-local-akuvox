@@ -61,7 +61,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_capability_report_dependency_floor() -> None:
-    """Test dependency metadata requires pylocal-akuvox 1.3.0 or newer."""
+    """Test dependency metadata requires pylocal-akuvox 1.4.0 or newer."""
     manifest = json.loads(
         (REPO_ROOT / "custom_components/local_akuvox/manifest.json").read_text(),
     )
@@ -73,10 +73,10 @@ def test_capability_report_dependency_floor() -> None:
         if package["name"] == "pylocal-akuvox"
     )
 
-    assert "pylocal-akuvox>=1.3.0" in manifest["requirements"]
-    assert "pylocal-akuvox>=1.3.0" in pyproject["project"]["dependencies"]
-    assert Version(lock_package["version"]) >= Version("1.3.0")
-    assert Version(importlib.metadata.version("pylocal-akuvox")) >= Version("1.3.0")
+    assert "pylocal-akuvox>=1.4.0" in manifest["requirements"]
+    assert "pylocal-akuvox>=1.4.0" in pyproject["project"]["dependencies"]
+    assert Version(lock_package["version"]) >= Version("1.4.0")
+    assert Version(importlib.metadata.version("pylocal-akuvox")) >= Version("1.4.0")
 
     from pylocal_akuvox import run_capability_report
 
