@@ -220,7 +220,8 @@ def test_capability_report_metadata_and_translations() -> None:
         assert term in combined_text
     for term in ("create", "modify", "verify", "delete", "relay-trigger"):
         assert term in combined_text
-    assert "pylocal-akuvox 1.3.0" in combined_text
+    assert "upstream debug logging may include the username" in combined_text
+    assert "pylocal-akuvox" not in combined_text
 
 
 # Library-to-HA exception mapping pairs:
