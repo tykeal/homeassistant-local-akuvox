@@ -39,7 +39,7 @@ SERVICE_RUN_CAPABILITY_REPORT: Final = "run_capability_report"
 | ----- | ------ | ------- | -------- |
 | `write` | optional boolean | `False` | Passed to upstream as `write`. False keeps read-only behavior. True opts into upstream write tests and warnings. |
 | `open_door` | optional boolean | `False` | Passed to upstream as `open_door` only after hard-gate validation. |
-| `open_door_user` | optional non-empty string | `None` | Required when `open_door=True`; passed as `open_door_user`; never logged by integration code, persisted, returned, saved, or placed in repairs/errors. Upstream v1.4.0 debug logs can include it unless an upstream fix is consumed. |
+| `open_door_user` | optional non-empty string | `None` | Required when `open_door=True`; passed as `open_door_user`; never logged by integration code, persisted, returned, saved, or placed in repairs/errors. Upstream v1.5.0 debug logs can include it unless an upstream fix is consumed. |
 | `open_door_password` | optional non-empty string | `None` | Required when `open_door=True`; passed as `open_door_password`; password selector in service metadata; never logged, persisted, returned, saved, or placed in repairs/errors. |
 | `save_to_file` | optional boolean | `False` | Enables file-output contract without changing report content. |
 | `file_name` | optional relative `.json` path | generated | Valid only with `save_to_file=True`; rejected otherwise. The file-output contract performs path validation. |
@@ -86,7 +86,7 @@ The entity method must:
    `apply_capability_options(device, attempt_unknown=get_effective_attempt_unknown(entry))`.
 7. Acquire one Home Assistant instance-wide capability-report lock stored under a
    reserved `hass.data[DOMAIN]` key, shared by all Local Akuvox config entries,
-   before calling upstream because the verified v1.4.0 source redirects
+   before calling upstream because the verified v1.5.0 source redirects
    process-wide stdout/stderr for no-op/custom emitters. The reserved key must be
    ignored as a coordinator entry and removed on final unload when no config
    entries remain.
@@ -145,7 +145,7 @@ Stage 5 tests must cover:
 - Invalid OpenDoor combinations fail before `_create_device()` or upstream report
   invocation.
 - Valid OpenDoor passes user/password to upstream, does not log either field from
-  integration code, and documents the upstream v1.4.0 username debug-log caveat.
+  integration code, and documents the upstream v1.5.0 username debug-log caveat.
 - `attempt_unknown_capability` is applied after context entry and before report
   invocation.
 - Concurrent report calls from different config entries are serialized around the
@@ -156,6 +156,6 @@ Stage 5 tests must cover:
 - Unsupported and generic `AkuvoxError` paths use existing repairs/error surfaces.
 - Existing diagnostics remain read-only and do not call the new report API.
 - `manifest.json`, `pyproject.toml`, and lock metadata resolve
-  `pylocal-akuvox>=1.4.0`.
+  `pylocal-akuvox>=1.5.0`.
 
 <!-- markdownlint-enable MD013 -->
