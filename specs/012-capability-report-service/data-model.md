@@ -19,7 +19,7 @@ below are the service-specific data.
 | ----- | ---- | ------- | -------- | -------------------- |
 | `write` | boolean | `False` | No | Passed unchanged to `pylocal_akuvox.run_capability_report()`. When false, the upstream report probes capabilities and runs read tests only. |
 | `open_door` | boolean | `False` | No | Passed unchanged only after validation. If true, Home Assistant must also require `write=True`, `open_door_user`, and `open_door_password` before device entry. |
-| `open_door_user` | non-empty string | `None` | Required when `open_door=True` | Relay/OpenDoor HTTP username, separate from integration credentials. Never log from integration code, store, return, save, or include in repairs placeholders. Upstream v1.4.0 debug logs can include this username unless an upstream redaction fix is consumed. |
+| `open_door_user` | non-empty string | `None` | Required when `open_door=True` | Relay/OpenDoor HTTP username, separate from integration credentials. Never log from integration code, store, return, save, or include in repairs placeholders. Upstream v1.5.0 debug logs can include this username unless an upstream redaction fix is consumed. |
 | `open_door_password` | non-empty string | `None` | Required when `open_door=True` | Relay/OpenDoor HTTP password. Use a password selector in `services.yaml`; never log, store, return, save, or include in repairs placeholders. |
 | `save_to_file` | boolean | `False` | No | When true, write the same redacted report dictionary returned in the response to a config-dir JSON file. |
 | `file_name` | relative path string ending in `.json` | generated | No | Used only when `save_to_file=True`. Must not be absolute, contain `..`, escape the report directory after resolution, or target an existing file. |
@@ -74,7 +74,7 @@ Successful calls return a `ServiceResponse` dictionary:
 
 ## Report dictionary shape
 
-The upstream v1.4.0 `DiagnosticReport.to_json()` contract currently returns:
+The upstream v1.5.0 `DiagnosticReport.to_json()` contract currently returns:
 
 ```json
 {
