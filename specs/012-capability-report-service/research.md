@@ -13,7 +13,7 @@ SPDX-License-Identifier: Apache-2.0
 ## Verified upstream facts
 
 The adjacent `pylocal-akuvox` source checkout was used as the load-bearing
-reference for this plan. Stage 5 should re-check the exact installed v1.5.0
+reference for this plan. Stage 5 should re-check the exact installed v1.6.0
 package before implementation.
 
 - `pylocal_akuvox.run_capability_report` is exported from
@@ -153,7 +153,7 @@ coverage/docstring clarity.
 **Rationale**: Explicit kwargs prevent accidental drift if upstream defaults
 change. `redact_stdout=True` ensures any progress lines would be redacted, and a
 no-op `emit` suppresses progress text because the Home Assistant response carries
-the report data. The verified v1.5.0 source still redirects stdout/stderr for
+the report data. The verified v1.6.0 source still redirects stdout/stderr for
 custom emitters, so Stage 5 must serialize report executions with one
 Home Assistant instance-wide `asyncio.Lock` shared across all `local_akuvox`
 config entries. Store it in `hass.data[DOMAIN]` under a reserved key such as
@@ -196,7 +196,7 @@ OpenDoor fields as relay
 credentials for integration-controlled surfaces: neither `open_door_user` nor
 `open_door_password` may appear in integration logs, repairs placeholders,
 errors, responses, saved files, or tests. Accuracy caveat: verified upstream
-v1.5.0 debug logging redacts the password but includes `UserName` in the
+v1.6.0 debug logging redacts the password but includes `UserName` in the
 OpenDoor HTTP parameter log, so Stage 5 must not claim end-to-end username log
 redaction unless an upstream redaction fix is consumed first.
 
@@ -285,7 +285,7 @@ Other `AkuvoxError` subclasses should become sanitized, actionable
 `HomeAssistantError` messages. Schema and file validation failures should become
 `ServiceValidationError`. Raw OpenDoor credentials must never appear in
 integration-controlled logs, repairs placeholders, exception messages, response
-data, or saved JSON. Because upstream v1.5.0 debug logging can include
+data, or saved JSON. Because upstream v1.6.0 debug logging can include
 `open_door_user`, Stage 5 must either document that limitation in service
 descriptions or consume an upstream fix before promising username log redaction.
 
@@ -303,11 +303,11 @@ leaking secrets.
 ### 8. Dependency pin bump
 
 **Decision**: Raise the runtime and project metadata floor from
-`pylocal-akuvox>=1.0.0` to `pylocal-akuvox>=1.5.0` in `manifest.json` and
+`pylocal-akuvox>=1.0.0` to `pylocal-akuvox>=1.6.0` in `manifest.json` and
 `pyproject.toml`, then refresh `uv.lock` in the implementation stage. Update
 existing `strings.json` and `translations/en.json` text that names
 `pylocal-akuvox 1.0.0` so user-facing capability-safety descriptions reference
-the new `1.5.0` dependency floor. Review `.pre-commit-config.yaml` comments and
+the new `1.6.0` dependency floor. Review `.pre-commit-config.yaml` comments and
 hook environments for stale references, but no hook currently pins
 `pylocal-akuvox` directly.
 
@@ -319,7 +319,7 @@ a package that exports it.
 
 - Optional import with old-library fallback — rejected because the feature cannot
   work without the report API and would complicate tests and user errors.
-- Exact `==1.5.0` pin — rejected because the repository uses minimum compatible
+- Exact `==1.6.0` pin — rejected because the repository uses minimum compatible
   constraints and should accept future compatible fixes.
 
 ## Summary of Decisions
@@ -336,6 +336,6 @@ a package that exports it.
 | Response wrapper | `{"report": <upstream redacted dict>, "file": {"path": ...}}` when saved |
 | File directory | `<config>/local_akuvox/capability_reports/` |
 | File overwrite | Never overwrite; existing target is validation error |
-| Dependency floor | `pylocal-akuvox>=1.5.0` in runtime and project metadata |
+| Dependency floor | `pylocal-akuvox>=1.6.0` in runtime and project metadata |
 
 <!-- markdownlint-enable MD013 -->

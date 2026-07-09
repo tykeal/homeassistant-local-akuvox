@@ -137,7 +137,7 @@ the fully explicit call passes `open_door=True`, `open_door_user`, and
   validation errors, or device/network/authentication errors.
 - The OpenDoor relay credentials are separate from the integration connection
   credentials and must not be stored in config entries or logs.
-- The upstream write suite is broader than throwaway CRUD. In v1.5.0 it also
+- The upstream write suite is broader than throwaway CRUD. In v1.6.0 it also
   includes relay-trigger and device-config set/read-back checks, so write-mode
   descriptions must warn about temporary device mutations beyond entity cleanup.
 - The upstream report API accepts `emit` and `redact_stdout`, but the Home
@@ -185,11 +185,11 @@ the fully explicit call passes `open_door=True`, `open_door_user`, and
   `new_device` issue template without additional manual redaction.
 - **FR-014**: The returned report MUST include device, authentication,
   observed-schema, test-result, and HTTP-event evidence as produced by the
-  upstream v1.5.0 report API.
+  upstream v1.6.0 report API.
 - **FR-015**: The service MUST pass a no-op `emit` callback when invoking
   upstream to discard progress text, because Home Assistant returns the report
   dictionary directly and does not need live progress output. Because upstream
-  v1.5.0 `run_capability_report()` performs process-wide stdout/stderr
+  v1.6.0 `run_capability_report()` performs process-wide stdout/stderr
   redirection during every run except `emit is print`, the service MUST
   serialize concurrent report executions with a single Home Assistant
   instance-wide lock shared across all `local_akuvox` config entries. The lock
@@ -201,7 +201,7 @@ the fully explicit call passes `open_door=True`, `open_door_user`, and
 - **FR-017**: The service MUST handle `AkuvoxError` subclasses with sanitized,
   actionable Home Assistant service errors and structured logs.
 - **FR-018**: The integration MUST raise the minimum `pylocal-akuvox` dependency
-  pin from `>=1.0.0` to `>=1.5.0` in runtime and project metadata.
+  pin from `>=1.0.0` to `>=1.6.0` in runtime and project metadata.
 - **FR-019**: `services.yaml` MUST define the service target and all fields with
   selectors, examples, and descriptions that match the runtime schema.
 - **FR-020**: `strings.json` and `translations/en.json` MUST include service and
