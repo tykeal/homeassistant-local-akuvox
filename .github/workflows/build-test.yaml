@@ -40,7 +40,7 @@ jobs:
           egress-policy: audit
 
       # yamllint disable-line rule:line-length
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           fetch-depth: 0
 
@@ -157,7 +157,7 @@ jobs:
           egress-policy: 'audit'
 
       # yamllint disable-line rule:line-length
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
       - name: 'Build Python project'
         id: python-build
@@ -184,7 +184,7 @@ jobs:
           egress-policy: audit
 
       # yamllint disable-line rule:line-length
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
       - name: "Python tests [pytest] ${{ matrix.python-version }}"
         # yamllint disable-line rule:line-length
@@ -217,7 +217,7 @@ jobs:
           egress-policy: 'audit'
 
       # yamllint disable-line rule:line-length
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
       - name: "Audit dependencies ${{ matrix.python-version }}"
         continue-on-error: "${{ vars.NO_BLOCK_AUDIT_FAIL == 'true' }}"
@@ -247,7 +247,7 @@ jobs:
           egress-policy: 'audit'
 
       # yamllint disable-line rule:line-length
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
       - name: "Generate SBOM"
         id: sbom
@@ -291,7 +291,7 @@ jobs:
           egress-policy: 'audit'
 
       # yamllint disable-line rule:line-length
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
       - name: "Download SBOM artefact"
         # yamllint disable-line rule:line-length
