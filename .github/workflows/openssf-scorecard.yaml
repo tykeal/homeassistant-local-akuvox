@@ -35,7 +35,7 @@ jobs:
   openssf-scorecard:
     name: 'OpenSSF Scorecard'
     # yamllint disable-line rule:line-length
-    uses: lfit/releng-reusable-workflows/.github/workflows/reuse-openssf-scorecard.yaml@fd3c1b43bc919e9e70787b009ffa2768ddbb1267  # v0.7.2
+    uses: lfit/releng-reusable-workflows/.github/workflows/reuse-openssf-scorecard.yaml@973bba87aa9cc4ab43242ba9afac37d70c72f134  # v0.9.1
     permissions:
       # Needed to upload the results to code-scanning dashboard.
       security-events: write  # Upload Scorecard results to code scanning.
