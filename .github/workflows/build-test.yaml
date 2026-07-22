@@ -57,6 +57,9 @@ jobs:
 
   clear-cache:
     name: 'Clear Python Caches'
+    if: >-
+      github.event_name == 'workflow_dispatch'
+      && github.event.inputs.clear_cache == 'true'
     runs-on: ubuntu-latest
     permissions:
       actions: write
@@ -69,18 +72,7 @@ jobs:
         with:
           egress-policy: 'audit'
 
-      - name: 'Skip cache clearing'
-        if: >-
-          github.event_name != 'workflow_dispatch'
-          || github.event.inputs.clear_cache != 'true'
-        run: |
-          echo "Cache clearing was not requested." \
-            >> "$GITHUB_STEP_SUMMARY"
-
       - name: 'Clear Python dependency caches'
-        if: >-
-          github.event_name == 'workflow_dispatch'
-          && github.event.inputs.clear_cache == 'true'
         env:
           REPO: "${{ github.repository }}"
         run: |
@@ -140,7 +132,7 @@ jobs:
   python-build:
     name: 'Python Build'
     needs: 'clear-cache'
-    if: ${{ !cancelled() && needs.clear-cache.result == 'success' }}
+    if: ${{ always() && !cancelled() }}
     runs-on: 'ubuntu-latest'
     outputs:
       matrix_json: "${{ steps.python-build.outputs.matrix_json }}"
