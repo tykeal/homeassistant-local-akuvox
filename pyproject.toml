@@ -31,7 +31,7 @@ dev = [
     "pytest-asyncio>=1.3.0",
     "pytest-cov>=7.0.0",
     "pytest-homeassistant-custom-component>=0.13.344",
-    "ruff>=0.15.22",
+    "ruff>=0.16.3",
 ]
 
 # Mirror constrained aiohttp 3.14.1 from the Home Assistant 2026.7
