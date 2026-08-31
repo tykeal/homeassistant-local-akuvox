@@ -42,8 +42,7 @@ def _parse_config_int(
     max_val: int | None = None,
     allowed: set[int] | None = None,
     key: str = "",
-) -> int:
-    ...
+) -> int: ...
 ```
 
 **Responsibility**: Convert a string-like device config value to an integer and
@@ -65,8 +64,7 @@ apply optional range or allowed-set validation.
 ### _build_relay_config
 
 ```python
-def _build_relay_config(config: Any, letter: str) -> RelayConfig:
-    ...
+def _build_relay_config(config: Any, letter: str) -> RelayConfig: ...
 ```
 
 **Responsibility**: Build one `RelayConfig` from a dict-like `DeviceConfig` and a
