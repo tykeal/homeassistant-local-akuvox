@@ -39,7 +39,7 @@ The service is called on an `AkuvoxLockEntity` instance.
         {
             "id": "2",
             "name": "Maintenance",
-        }
+        },
     ]
 }
 ```

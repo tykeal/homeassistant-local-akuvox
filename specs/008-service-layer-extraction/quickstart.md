@@ -108,6 +108,7 @@ from .validation import (
 # After:
 from .services import async_register_services
 
+
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Register platform entity services for Akuvox."""
     await async_register_services(hass)

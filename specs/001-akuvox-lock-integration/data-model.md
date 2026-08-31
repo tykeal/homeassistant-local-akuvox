@@ -22,10 +22,10 @@ first, falling back to `entry.data` for fields not yet overridden.
 
 ```python
 {
-    "host": str,           # Device IP address or hostname
-    "use_ssl": bool,       # Whether to use HTTPS
-    "verify_ssl": bool,    # Whether to verify SSL certs
-    "auth_method": str,    # "none"|"allowlist"|"basic"|"digest"
+    "host": str,  # Device IP address or hostname
+    "use_ssl": bool,  # Whether to use HTTPS
+    "verify_ssl": bool,  # Whether to verify SSL certs
+    "auth_method": str,  # "none"|"allowlist"|"basic"|"digest"
     "username": str | None,  # Basic/Digest only
     "password": str | None,  # Basic/Digest only
 }
@@ -45,7 +45,7 @@ every 30 seconds:
 ```python
 @dataclass
 class AkuvoxCoordinatorData:
-    device_info: DeviceInfo    # Library's DeviceInfo from get_info()
+    device_info: DeviceInfo  # Library's DeviceInfo from get_info()
     relay_status: dict[str, Any]  # From get_relay_status()
 ```
 

@@ -15,10 +15,12 @@ SPDX-License-Identifier: Apache-2.0
 **Input Schema**:
 
 ```python
-vol.Schema({
-    vol.Required(CONF_HOST): str,
-    vol.Required(CONF_USE_SSL, default=False): bool,
-})
+vol.Schema(
+    {
+        vol.Required(CONF_HOST): str,
+        vol.Required(CONF_USE_SSL, default=False): bool,
+    }
+)
 ```
 
 **Validation**:
@@ -37,9 +39,11 @@ Only shown when `use_ssl` is True in Step 1.
 **Input Schema**:
 
 ```python
-vol.Schema({
-    vol.Required(CONF_VERIFY_SSL, default=False): bool,
-})
+vol.Schema(
+    {
+        vol.Required(CONF_VERIFY_SSL, default=False): bool,
+    }
+)
 ```
 
 **Validation**: None (boolean toggle)
@@ -51,13 +55,17 @@ vol.Schema({
 **Input Schema**:
 
 ```python
-vol.Schema({
-    vol.Required(CONF_AUTH_METHOD, default=AUTH_NONE): vol.In([
-        AUTH_NONE,      # "None / AllowList" in UI
-        AUTH_BASIC,
-        AUTH_DIGEST,
-    ]),
-})
+vol.Schema(
+    {
+        vol.Required(CONF_AUTH_METHOD, default=AUTH_NONE): vol.In(
+            [
+                AUTH_NONE,  # "None / AllowList" in UI
+                AUTH_BASIC,
+                AUTH_DIGEST,
+            ]
+        ),
+    }
+)
 ```
 
 **Validation**:
@@ -73,10 +81,12 @@ Only shown for Basic Auth or Digest Auth.
 **Input Schema**:
 
 ```python
-vol.Schema({
-    vol.Required(CONF_USERNAME): str,
-    vol.Required(CONF_PASSWORD): str,
-})
+vol.Schema(
+    {
+        vol.Required(CONF_USERNAME): str,
+        vol.Required(CONF_PASSWORD): str,
+    }
+)
 ```
 
 **Validation**:

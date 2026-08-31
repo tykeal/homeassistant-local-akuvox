@@ -116,6 +116,7 @@ from homeassistant.helpers import config_validation as cv, service
 
 from .const import DOMAIN, SERVICE_LIST_SCHEDULES, SERVICE_ADD_SCHEDULE
 
+
 async def async_setup(hass, config):
     service.async_register_platform_entity_service(
         hass,
