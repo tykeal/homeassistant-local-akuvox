@@ -17,9 +17,11 @@ Added after the existing connection test step (Step 5 from spec 001).
 **Input Schema**:
 
 ```python
-vol.Schema({
-    vol.Required(CONF_WEBHOOK_ENABLED, default=False): bool,
-})
+vol.Schema(
+    {
+        vol.Required(CONF_WEBHOOK_ENABLED, default=False): bool,
+    }
+)
 ```
 
 **Behavior**:
@@ -66,10 +68,12 @@ Added to the existing options flow.
 **Input Schema**:
 
 ```python
-vol.Schema({
-    # ... existing connection fields ...
-    vol.Required(CONF_WEBHOOK_ENABLED, default=current_value): bool,
-})
+vol.Schema(
+    {
+        # ... existing connection fields ...
+        vol.Required(CONF_WEBHOOK_ENABLED, default=current_value): bool,
+    }
+)
 ```
 
 **Behavior on Enable** (was disabled → now enabled):
@@ -140,26 +144,16 @@ base_url = async_generate_url(hass, webhook_id)
 # Example: "http://homeassistant.local:8123/api/webhook/abc123..."
 
 action_urls = {
-    "Config.Features.ACTIONURL.RelayATriggered":
-        f"{base_url}?event=relay_a_triggered&status=$relay1status",
-    "Config.Features.ACTIONURL.RelayAClosed":
-        f"{base_url}?event=relay_a_closed&status=$relay1status",
-    "Config.Features.ACTIONURL.RelayBTriggered":
-        f"{base_url}?event=relay_b_triggered&status=$relay2status",
-    "Config.Features.ACTIONURL.RelayBClosed":
-        f"{base_url}?event=relay_b_closed&status=$relay2status",
-    "Config.Features.ACTIONURL.InputATriggered":
-        f"{base_url}?event=input_a_triggered&status=$relay1status",
-    "Config.Features.ACTIONURL.InputAClosed":
-        f"{base_url}?event=input_a_closed&status=$relay1status",
-    "Config.Features.ACTIONURL.InputBTriggered":
-        f"{base_url}?event=input_b_triggered&status=$relay2status",
-    "Config.Features.ACTIONURL.InputBClosed":
-        f"{base_url}?event=input_b_closed&status=$relay2status",
-    "Config.Features.ACTIONURL.ValidCodeEntered":
-        f"{base_url}?event=valid_code_entered&code=$code",
-    "Config.Features.ACTIONURL.InvalidCodeEntered":
-        f"{base_url}?event=invalid_code_entered",
+    "Config.Features.ACTIONURL.RelayATriggered": f"{base_url}?event=relay_a_triggered&status=$relay1status",
+    "Config.Features.ACTIONURL.RelayAClosed": f"{base_url}?event=relay_a_closed&status=$relay1status",
+    "Config.Features.ACTIONURL.RelayBTriggered": f"{base_url}?event=relay_b_triggered&status=$relay2status",
+    "Config.Features.ACTIONURL.RelayBClosed": f"{base_url}?event=relay_b_closed&status=$relay2status",
+    "Config.Features.ACTIONURL.InputATriggered": f"{base_url}?event=input_a_triggered&status=$relay1status",
+    "Config.Features.ACTIONURL.InputAClosed": f"{base_url}?event=input_a_closed&status=$relay1status",
+    "Config.Features.ACTIONURL.InputBTriggered": f"{base_url}?event=input_b_triggered&status=$relay2status",
+    "Config.Features.ACTIONURL.InputBClosed": f"{base_url}?event=input_b_closed&status=$relay2status",
+    "Config.Features.ACTIONURL.ValidCodeEntered": f"{base_url}?event=valid_code_entered&code=$code",
+    "Config.Features.ACTIONURL.InvalidCodeEntered": f"{base_url}?event=invalid_code_entered",
 }
 ```
 
