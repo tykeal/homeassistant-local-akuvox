@@ -18,8 +18,8 @@ structures. It modifies the behavior of the existing
 class RelayConfig:
     name: str = ""
     hold_delay: int = DEFAULT_HOLD_DELAY_SECONDS  # 5
-    relay_type: int = DEFAULT_RELAY_TYPE            # 0 (NO)
-    relay_mode: int = DEFAULT_RELAY_MODE            # 0 (Auto-close)
+    relay_type: int = DEFAULT_RELAY_TYPE  # 0 (NO)
+    relay_mode: int = DEFAULT_RELAY_MODE  # 0 (Auto-close)
 ```
 
 - `relay_mode = 0`: Auto-close (monostable) — relay auto-locks
@@ -171,8 +171,7 @@ async def _async_finish_optimistic_lock(self) -> None:
         await self.coordinator.async_refresh()
     except Exception:  # noqa: BLE001
         _LOGGER.exception(
-            "Error refreshing coordinator after optimistic lock "
-            "for relay %s",
+            "Error refreshing coordinator after optimistic lock for relay %s",
             self._relay_key,
         )
     finally:
