@@ -39,12 +39,12 @@ The service is called on an `AkuvoxLockEntity` instance.
             "user_id": "john.doe",
             "schedule_relay": "1001-1,1002-1",
             "web_relay": None,
-            "private_pin": "1234",     # Plain text
-            "card_code": "ABC123",     # Plain text
+            "private_pin": "1234",  # Plain text
+            "card_code": "ABC123",  # Plain text
             "lift_floor_num": "3",
             "user_type": None,
             "source": None,
-            "source_type": "1",        # "1" = local, "2" = cloud
+            "source_type": "1",  # "1" = local, "2" = cloud
         }
     ]
 }
