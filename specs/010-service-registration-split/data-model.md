@@ -19,8 +19,7 @@ inside `custom_components/local_akuvox/services.py`.
 ### async_register_services
 
 ```python
-async def async_register_services(hass: HomeAssistant) -> None:
-    ...
+async def async_register_services(hass: HomeAssistant) -> None: ...
 ```
 
 **Responsibility**: Public integration setup entry point for registering all
@@ -47,8 +46,7 @@ Local Akuvox lock entity services.
 ### _register_schedule_services
 
 ```python
-def _register_schedule_services(hass: HomeAssistant) -> None:
-    ...
+def _register_schedule_services(hass: HomeAssistant) -> None: ...
 ```
 
 **Responsibility**: Register schedule service operations.
@@ -71,8 +69,7 @@ def _register_schedule_services(hass: HomeAssistant) -> None:
 ### _register_user_services
 
 ```python
-def _register_user_services(hass: HomeAssistant) -> None:
-    ...
+def _register_user_services(hass: HomeAssistant) -> None: ...
 ```
 
 **Responsibility**: Register user and user schedule-relay service operations.
@@ -97,8 +94,7 @@ def _register_user_services(hass: HomeAssistant) -> None:
 ### _register_contact_services
 
 ```python
-def _register_contact_services(hass: HomeAssistant) -> None:
-    ...
+def _register_contact_services(hass: HomeAssistant) -> None: ...
 ```
 
 **Responsibility**: Register contact service operations.
@@ -121,8 +117,7 @@ def _register_contact_services(hass: HomeAssistant) -> None:
 ### _register_group_services
 
 ```python
-def _register_group_services(hass: HomeAssistant) -> None:
-    ...
+def _register_group_services(hass: HomeAssistant) -> None: ...
 ```
 
 **Responsibility**: Register group service operations.
