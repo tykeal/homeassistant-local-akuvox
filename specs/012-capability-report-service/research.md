@@ -30,8 +30,7 @@ package before implementation.
       timeout: float | None = None,
       redact_stdout: bool = False,
       emit: Callable[[str], None] | None = None,
-  ) -> dict[str, object]:
-      ...
+  ) -> dict[str, object]: ...
   ```
 
 - The public function wraps `_run_capability_report()` in `_stdout_context(emit)`.

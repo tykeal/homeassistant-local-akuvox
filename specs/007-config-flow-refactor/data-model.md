@@ -139,11 +139,21 @@ from pylocal_akuvox import (
 )
 
 from .const import (
-    AUTH_BASIC, AUTH_DIGEST, AUTH_NONE,
-    CONF_AUTH_METHOD, CONF_HOST, CONF_PASSWORD,
-    CONF_REQUEST_DELAY, CONF_USE_SSL, CONF_USERNAME,
-    CONF_VERIFY_SSL, CONF_WEBHOOK_ENABLED, CONF_WEBHOOK_ID,
-    DEFAULT_REQUEST_DELAY, DOMAIN, get_auth_method_map,
+    AUTH_BASIC,
+    AUTH_DIGEST,
+    AUTH_NONE,
+    CONF_AUTH_METHOD,
+    CONF_HOST,
+    CONF_PASSWORD,
+    CONF_REQUEST_DELAY,
+    CONF_USE_SSL,
+    CONF_USERNAME,
+    CONF_VERIFY_SSL,
+    CONF_WEBHOOK_ENABLED,
+    CONF_WEBHOOK_ID,
+    DEFAULT_REQUEST_DELAY,
+    DOMAIN,
+    get_auth_method_map,
 )
 from .options_flow import AkuvoxOptionsFlow
 from .webhook import build_action_urls
@@ -161,11 +171,20 @@ from homeassistant.config_entries import ConfigEntry, OptionsFlow
 from pylocal_akuvox import AkuvoxDevice, AuthConfig, AuthMethod
 
 from .const import (
-    AUTH_BASIC, AUTH_DIGEST, AUTH_NONE,
-    CONF_AUTH_METHOD, CONF_HOST, CONF_PASSWORD,
-    CONF_REQUEST_DELAY, CONF_USE_SSL, CONF_USERNAME,
-    CONF_VERIFY_SSL, CONF_WEBHOOK_ENABLED, CONF_WEBHOOK_ID,
-    DEFAULT_REQUEST_DELAY, get_auth_method_map,
+    AUTH_BASIC,
+    AUTH_DIGEST,
+    AUTH_NONE,
+    CONF_AUTH_METHOD,
+    CONF_HOST,
+    CONF_PASSWORD,
+    CONF_REQUEST_DELAY,
+    CONF_USE_SSL,
+    CONF_USERNAME,
+    CONF_VERIFY_SSL,
+    CONF_WEBHOOK_ENABLED,
+    CONF_WEBHOOK_ID,
+    DEFAULT_REQUEST_DELAY,
+    get_auth_method_map,
 )
 from .webhook import build_action_urls
 ```
