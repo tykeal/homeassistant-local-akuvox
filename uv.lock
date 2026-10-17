@@ -6,9 +6,6 @@ resolution-markers = [
     "python_full_version < '3.15'",
 ]
 
-[manifest]
-overrides = [{ name = "aiohttp", specifier = "==3.14.1" }]
-
 [[package]]
 name = "acme"
 version = "5.4.0"
