@@ -26,7 +26,7 @@ jobs:
   scan:
     name: 'Audit Repository'
     # yamllint disable-line rule:line-length
-    uses: lfit/releng-reusable-workflows/.github/workflows/reuse-python-codeql.yaml@f7aae218f1fa0257e3dcd19f5c7d3f88f482f266  # v0.10.1
+    uses: lfit/releng-reusable-workflows/.github/workflows/reuse-python-codeql.yaml@fb907909b12bbaf262de6b24fcafd181cabe6b24  # v0.10.4
     with:
       codeql_config: .github/codeql/codeql-config.yml
     permissions:
