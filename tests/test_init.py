@@ -292,7 +292,11 @@ async def test_device_name_from_config_location(
 
     dev_reg = dr.async_get(hass)
     mac_clean = MOCK_MAC.lower().replace(":", "")
-    device = dev_reg.async_get_device(identifiers={(DOMAIN, mac_clean)})
+    devices = dr.async_entries_for_config_entry(dev_reg, entry.entry_id)
+    device = next(
+        (d for d in devices if (DOMAIN, mac_clean) in d.identifiers),
+        None,
+    )
     assert device is not None
     assert device.name == "Front Door"
 
@@ -321,7 +325,11 @@ async def test_device_name_fallback_when_location_empty(
 
     dev_reg = dr.async_get(hass)
     mac_clean = MOCK_MAC.lower().replace(":", "")
-    device = dev_reg.async_get_device(identifiers={(DOMAIN, mac_clean)})
+    devices = dr.async_entries_for_config_entry(dev_reg, entry.entry_id)
+    device = next(
+        (d for d in devices if (DOMAIN, mac_clean) in d.identifiers),
+        None,
+    )
     assert device is not None
     assert device.name == "Akuvox E21V"
 
