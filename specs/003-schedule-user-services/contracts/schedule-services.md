@@ -43,7 +43,7 @@ The service is called on an `AkuvoxLockEntity` instance.
             "time_start": "08:00",
             "time_end": "18:00",
             "display_id": "1",
-            "source_type": "1",    # "1" = local, "2" = cloud
+            "source_type": "1",  # "1" = local, "2" = cloud
             "mode": None,
             "sun": None,
             "mon": "1",

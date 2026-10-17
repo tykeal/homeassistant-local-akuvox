@@ -122,12 +122,13 @@ config = await device.get_device_config()  # → DeviceConfig
 value = config.get("Config.Features.ACTIONURL.Enable")
 
 # Write config
-await device.set_device_config({
-    "Config.Features.ACTIONURL.Enable": "1",
-    "Config.Features.ACTIONURL.RelayATriggered":
-        "http://ha:8123/api/webhook/{id}?event=relay_a_triggered"
+await device.set_device_config(
+    {
+        "Config.Features.ACTIONURL.Enable": "1",
+        "Config.Features.ACTIONURL.RelayATriggered": "http://ha:8123/api/webhook/{id}?event=relay_a_triggered"
         "&status=$relay1status",
-})
+    }
+)
 ```
 
 - `get_device_config()` calls `/api/config/get`
@@ -149,11 +150,11 @@ from homeassistant.components.webhook import (
 # Register
 async_register(
     hass,
-    domain="akuvox",           # Integration domain
-    name="Akuvox {device}",    # Human-readable name
-    webhook_id=webhook_id,     # Unique random ID
+    domain="akuvox",  # Integration domain
+    name="Akuvox {device}",  # Human-readable name
+    webhook_id=webhook_id,  # Unique random ID
     handler=async_handle_webhook,  # Async callback
-    allowed_methods=["GET"],   # Akuvox sends GET requests
+    allowed_methods=["GET"],  # Akuvox sends GET requests
     # local_only intentionally omitted — see webhook-handler
     # contract for rationale (NAT/VPN/proxy compatibility)
 )

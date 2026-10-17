@@ -21,10 +21,9 @@ SPDX-License-Identifier: Apache-2.0
     "auth_method": str,
     "username": str | None,
     "password": str | None,
-
     # New webhook fields (spec 004)
-    "webhook_id": str | None,        # Random 64-char hex string
-    "webhook_enabled": bool,         # Whether webhook is active
+    "webhook_id": str | None,  # Random 64-char hex string
+    "webhook_enabled": bool,  # Whether webhook is active
 }
 ```
 
@@ -60,10 +59,12 @@ SPDX-License-Identifier: Apache-2.0
 The options flow adds a webhook management section (FR-007):
 
 ```python
-vol.Schema({
-    # Existing connection fields...
-    vol.Required(CONF_WEBHOOK_ENABLED, default=current_value): bool,
-})
+vol.Schema(
+    {
+        # Existing connection fields...
+        vol.Required(CONF_WEBHOOK_ENABLED, default=current_value): bool,
+    }
+)
 ```
 
 ## Action URL Configuration Keys
@@ -107,15 +108,15 @@ Event name: `akuvox_webhook_received` (domain-prefixed)
 
 ```python
 {
-    "device_id": str,           # HA device registry ID
-    "config_entry_id": str,     # HA config entry ID
-    "event_type": str,          # lowercase_snake_case event name
-    "payload": {                # Parsed query parameters
-        "event": str,           # Raw event parameter value
-        "status": str | None,   # Relay status ("0"/"1")
+    "device_id": str,  # HA device registry ID
+    "config_entry_id": str,  # HA config entry ID
+    "event_type": str,  # lowercase_snake_case event name
+    "payload": {  # Parsed query parameters
+        "event": str,  # Raw event parameter value
+        "status": str | None,  # Relay status ("0"/"1")
         "device_user_id": str | None,  # Device-assigned ID
         "user_id": str | None,  # User-defined external ID
-        "username": str | None, # User's display name
+        "username": str | None,  # User's display name
     },
 }
 ```
