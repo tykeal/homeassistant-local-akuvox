@@ -94,9 +94,9 @@ This project follows strict TDD. For every change:
 We use **Conventional Commits** with capitalized types:
 
 ```text
-Type(scope): Short description (≤50 chars)
+Type(scope): Short description
 
-Optional body wrapped at 80 characters.
+Optional body wrapped per `.gitlint`.
 
 Signed-off-by: Your Name <your-email@example.com>
 ```
@@ -107,8 +107,8 @@ Signed-off-by: Your Name <your-email@example.com>
 **Rules:**
 
 - Always sign off commits: `git commit -s`
-- Subject line must not exceed 50 characters.
-- Body lines must not exceed 80 characters.
+- Subject and body line limits are defined in `.gitlint` and enforced by
+  the gitlint pre-commit hook and the `commit-message-linting` CI job.
 - Each commit must represent exactly one logical change.
 - For single-commit PRs, the commit message must match
   the PR title.

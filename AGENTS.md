@@ -24,7 +24,7 @@ Use **Conventional Commits** with **capitalized types**:
 ```plaintext
 Type(scope): Short description
 
-Optional body with more details. Wrap at 80 characters.
+Optional body with more details, wrapped per `.gitlint`.
 
 Co-Authored-By: <AI Model Name> <appropriate-email@provider.com>
 ```
@@ -57,8 +57,14 @@ Co-Authored-By: <AI Model> <email@provider.com>"
 
 ### Line Length Limits
 
-- **Subject line**: Maximum 50 characters (required per constitution)
-- **Body lines**: Maximum 80 characters
+Subject and body line lengths are defined in `.gitlint`, which is the
+single source of truth. They are enforced automatically by the gitlint
+pre-commit hook and by the `commit-message-linting` CI job, so consult
+that file rather than relying on a number repeated here.
+
+- **Subject line**: see `title-max-length` in `.gitlint`
+- **Body lines**: gitlint's `body-max-line-length` rule; `.gitlint` does
+  not override the gitlint default
 - URLs in body are exempt from line length (gitlint configured)
 
 ### Co-Authorship
@@ -175,6 +181,6 @@ from the repository root using `uv`:
 | Co-author | `Co-Authored-By: <Model> <email@provider.com>` |
 | Subject format | `Type(scope): description` |
 | Type case | Capitalized (e.g., `Fix`, `Feat`) |
-| Subject length | ≤50 chars required |
-| Body line length | ≤80 chars |
+| Subject length | Per `title-max-length` in `.gitlint` |
+| Body line length | gitlint `body-max-line-length` default |
 | After failed commit | Fix and retry (no reset) |
