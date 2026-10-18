@@ -82,6 +82,12 @@ _LOGGER = logging.getLogger(__name__)
 # giving the relay time to re-lock after the window expires.
 _RELAY_REFRESH_BUFFER_SECONDS = 1
 
+# Backstop for the paginated user-lookup fallback. Devices return 10
+# users per page, so 100 pages covers 1000 users -- far beyond the
+# capacity of any supported Akuvox intercom. It exists only to bound
+# the loop if a device returns non-empty pages indefinitely.
+_USER_LOOKUP_MAX_PAGES = 100
+
 # Akuvox devices expose relays as "RelayA", "RelayB", etc.
 # with a single uppercase letter A-Z suffix.
 
@@ -1198,6 +1204,11 @@ class AkuvoxLockEntity(AkuvoxEntity, LockEntity):
                 break
 
         if target is None:
+            # The parameterless list may only cover the first page on
+            # devices that paginate at 10 users per page (issue #128).
+            target = await self._async_find_user_by_id_paged(user_id)
+
+        if target is None:
             raise HomeAssistantError(
                 f"{service}: user '{user_id}' not found",
             )
@@ -1208,6 +1219,63 @@ class AkuvoxLockEntity(AkuvoxEntity, LockEntity):
             )
 
         return target
+
+    async def _async_find_user_by_id_paged(
+        self,
+        user_id: str,
+    ) -> User | None:
+        """Search for a user by ID by walking the device's pages.
+
+        Fallback for :meth:`_fetch_local_user`. A parameterless
+        ``/api/user/get`` returns only a single page on devices that
+        paginate at 10 users per page, so any user beyond the first
+        page is invisible to the primary lookup. This walks explicit
+        pages to find them.
+
+        The paged request is best-effort: devices that do not honour
+        the ``page`` parameter may error or repeat the same page
+        forever, so failures return ``None`` and repeated IDs stop
+        the walk. Callers then report the usual "not found" error.
+
+        Args:
+            user_id: The device-internal ID of the user.
+
+        Returns:
+            The matching User, or ``None`` if it was not located.
+
+        """
+        seen_ids: set[str] = set()
+        for page in range(1, _USER_LOOKUP_MAX_PAGES + 1):
+            try:
+                users = await self.coordinator.device.list_users(page=page)
+            except AkuvoxError as err:
+                _LOGGER.debug(
+                    "Paged user lookup unavailable on page %s: %s",
+                    page,
+                    err,
+                )
+                return None
+
+            if not users:
+                return None
+
+            page_ids = {u.id for u in users if u.id is not None}
+            if page_ids <= seen_ids:
+                # The device ignored the page parameter and is
+                # repeating results; stop rather than loop forever.
+                return None
+            seen_ids |= page_ids
+
+            for user in users:
+                if user.id == user_id:
+                    return user
+
+        _LOGGER.debug(
+            "Paged user lookup hit the %s page limit without finding '%s'",
+            _USER_LOOKUP_MAX_PAGES,
+            user_id,
+        )
+        return None
 
     async def _check_cloud_schedules(
         self,
