@@ -46,11 +46,11 @@ from custom_components.local_akuvox.const import (
     EVENT_USER_CHANGED,
     SERVICE_RUN_CAPABILITY_REPORT,
 )
-from custom_components.local_akuvox.lock import _USER_LOOKUP_MAX_PAGES
 from custom_components.local_akuvox.services import (
     SERVICE_RUN_CAPABILITY_REPORT_SCHEMA,
     _register_report_services,
 )
+from custom_components.local_akuvox.user_fetch import MAX_USER_PAGES
 from custom_components.local_akuvox.validation import (
     is_cloud_provisioned_schedule,
     is_cloud_provisioned_user,
@@ -557,8 +557,9 @@ async def test_list_users_page_passed_through(
     )
 
     mock_akuvox_device.list_users.assert_any_call(page=2)
-    # Coordinator also calls list_users(page=None) during setup
-    assert mock_akuvox_device.list_users.call_count == 2
+    # Coordinator's cache fetch during setup costs the parameterless
+    # baseline plus page 1, which comes back empty and ends the walk.
+    assert mock_akuvox_device.list_users.call_count == 3
 
 
 async def test_list_users_no_page_default(
@@ -578,9 +579,10 @@ async def test_list_users_no_page_default(
         return_response=True,
     )
 
-    # Coordinator calls list_users(page=None) during setup,
-    # and the service call also uses page=None
-    assert mock_akuvox_device.list_users.call_count == 2
+    # Coordinator's cache fetch during setup costs the parameterless
+    # baseline plus page 1 (empty, ending the walk); the service call
+    # adds the third.
+    assert mock_akuvox_device.list_users.call_count == 3
     mock_akuvox_device.list_users.assert_called_with(page=None)
 
 
@@ -2722,7 +2724,7 @@ async def test_delete_user_paged_lookup_page_cap(
             blocking=True,
         )
 
-    assert mock_akuvox_device.list_users.call_count == _USER_LOOKUP_MAX_PAGES + 1
+    assert mock_akuvox_device.list_users.call_count == MAX_USER_PAGES + 1
     mock_akuvox_device.delete_user.assert_not_called()
 
 
@@ -3846,3 +3848,105 @@ async def test_delete_user_cloud_source_rejected(
         )
 
     mock_akuvox_device.delete_user.assert_not_called()
+
+
+async def test_delete_schedule_orphan_check_walks_pages(
+    hass: HomeAssistant,
+    mock_config_entry_data_none: dict[str, Any],
+    mock_akuvox_device: AsyncMock,
+    mock_schedule_list: list[AccessSchedule],
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test orphan detection sees users beyond the first page."""
+    import logging
+
+    first = User(
+        id="1",
+        name="Page One",
+        user_id="page.one",
+        schedule_relay="",
+        source_type="1",
+    )
+    orphan = User(
+        id="2",
+        name="Page Two",
+        user_id="page.two",
+        schedule_relay="10-1",
+        source_type="1",
+    )
+    pages: dict[int | None, list[User]] = {
+        None: [first],
+        1: [first],
+        2: [orphan],
+        3: [],
+    }
+
+    def _list_users(*, page: int | None = None) -> list[User]:
+        """Return the configured users for one page."""
+        return pages.get(page, [])
+
+    mock_akuvox_device.list_schedules.return_value = mock_schedule_list
+    mock_akuvox_device.list_users.side_effect = _list_users
+    await setup_entry(hass, mock_config_entry_data_none)
+
+    with caplog.at_level(logging.WARNING, logger="custom_components.local_akuvox"):
+        await hass.services.async_call(
+            DOMAIN,
+            "delete_schedule",
+            service_data={
+                "entity_id": ENTITY_ID,
+                "id": "1",
+            },
+            blocking=True,
+        )
+
+    assert "orphan" in caplog.text.lower()
+    assert "Page Two" in caplog.text
+
+
+async def test_modify_user_lookup_passes_id_less_page(
+    hass: HomeAssistant,
+    mock_config_entry_data_none: dict[str, Any],
+    mock_akuvox_device: AsyncMock,
+) -> None:
+    """Test paged lookup walks past a page whose users lack IDs."""
+    anonymous = User(
+        id=None,
+        name="No ID",
+        user_id="no.id",
+        schedule_relay="",
+        source_type="1",
+    )
+    target = User(
+        id="77",
+        name="Late User",
+        user_id="late.user",
+        schedule_relay="",
+        source_type="1",
+    )
+    pages: dict[int | None, list[User]] = {
+        None: [],
+        1: [anonymous],
+        2: [target],
+        3: [],
+    }
+
+    def _list_users(*, page: int | None = None) -> list[User]:
+        """Return the configured users for one page."""
+        return pages.get(page, [])
+
+    mock_akuvox_device.list_users.side_effect = _list_users
+    await setup_entry(hass, mock_config_entry_data_none)
+
+    await hass.services.async_call(
+        DOMAIN,
+        "modify_user",
+        service_data={
+            "entity_id": ENTITY_ID,
+            "id": "77",
+            "name": "Renamed",
+        },
+        blocking=True,
+    )
+
+    mock_akuvox_device.modify_user.assert_awaited_once()

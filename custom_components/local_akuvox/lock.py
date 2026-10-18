@@ -64,6 +64,12 @@ from .const import (
 from .coordinator import AkuvoxDataUpdateCoordinator
 from .entity import AkuvoxEntity
 from .report_service import report_open_door_validation_error
+from .user_fetch import (
+    MAX_USER_PAGES,
+    UserKey,
+    async_fetch_all_users,
+    user_key,
+)
 from .validation import (
     build_schedule_relay,
     check_required_schedule_fields,
@@ -81,12 +87,6 @@ _LOGGER = logging.getLogger(__name__)
 # Extra seconds added to the unlock delay before polling the device,
 # giving the relay time to re-lock after the window expires.
 _RELAY_REFRESH_BUFFER_SECONDS = 1
-
-# Backstop for the paginated user-lookup fallback. Devices return 10
-# users per page, so 100 pages covers 1000 users -- far beyond the
-# capacity of any supported Akuvox intercom. It exists only to bound
-# the loop if a device returns non-empty pages indefinitely.
-_USER_LOOKUP_MAX_PAGES = 100
 
 # Akuvox devices expose relays as "RelayA", "RelayB", etc.
 # with a single uppercase letter A-Z suffix.
@@ -1103,8 +1103,8 @@ class AkuvoxLockEntity(AkuvoxEntity, LockEntity):
         """Delete an access schedule from the device.
 
         Fetches the schedule list to verify the target exists and
-        is not cloud-provisioned, deletes it, then checks for
-        orphaned user-schedule assignments.
+        is not cloud-provisioned, deletes it, then checks every page
+        of users for orphaned user-schedule assignments.
 
         Args:
             **kwargs: Service call data (``id`` required).
@@ -1132,7 +1132,9 @@ class AkuvoxLockEntity(AkuvoxEntity, LockEntity):
             ) from err
 
         try:
-            users = await self.coordinator.device.list_users(page=None)
+            users = await async_fetch_all_users(
+                self.coordinator.device.list_users,
+            )
             for user in users:
                 relay = getattr(user, "schedule_relay", "") or ""
                 for pair in re.split(r"[;,]", relay):
@@ -1244,8 +1246,8 @@ class AkuvoxLockEntity(AkuvoxEntity, LockEntity):
             The matching User, or ``None`` if it was not located.
 
         """
-        seen_ids: set[str] = set()
-        for page in range(1, _USER_LOOKUP_MAX_PAGES + 1):
+        seen_keys: set[UserKey] = set()
+        for page in range(1, MAX_USER_PAGES + 1):
             try:
                 users = await self.coordinator.device.list_users(page=page)
             except AkuvoxError as err:
@@ -1259,12 +1261,12 @@ class AkuvoxLockEntity(AkuvoxEntity, LockEntity):
             if not users:
                 return None
 
-            page_ids = {u.id for u in users if u.id is not None}
-            if page_ids <= seen_ids:
+            page_keys = {user_key(u) for u in users}
+            if page_keys <= seen_keys:
                 # The device ignored the page parameter and is
                 # repeating results; stop rather than loop forever.
                 return None
-            seen_ids |= page_ids
+            seen_keys |= page_keys
 
             for user in users:
                 if user.id == user_id:
@@ -1272,7 +1274,7 @@ class AkuvoxLockEntity(AkuvoxEntity, LockEntity):
 
         _LOGGER.debug(
             "Paged user lookup hit the %s page limit without finding '%s'",
-            _USER_LOOKUP_MAX_PAGES,
+            MAX_USER_PAGES,
             user_id,
         )
         return None
