@@ -16,6 +16,10 @@ ci:
 
     Changes in this pull request are as follows:
   skip: [mypy]
+  # Dependabot owns hook rev updates (weekly, signed commits). Quarterly is
+  # the slowest schedule pre-commit.ci allows, minimising duplicate and
+  # unsigned autoupdate pull requests that cannot satisfy required_signatures.
+  autoupdate_schedule: quarterly
 
 exclude: |
   (?x)(
