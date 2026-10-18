@@ -46,6 +46,7 @@ from custom_components.local_akuvox.const import (
     EVENT_USER_CHANGED,
     SERVICE_RUN_CAPABILITY_REPORT,
 )
+from custom_components.local_akuvox.lock import _USER_LOOKUP_MAX_PAGES
 from custom_components.local_akuvox.services import (
     SERVICE_RUN_CAPABILITY_REPORT_SCHEMA,
     _register_report_services,
@@ -2457,6 +2458,300 @@ async def test_delete_user_not_found(
             service_data={
                 "entity_id": ENTITY_ID,
                 "id": "999",
+            },
+            blocking=True,
+        )
+
+    mock_akuvox_device.delete_user.assert_not_called()
+
+
+# ── Paginated user lookup fallback (issue #128) ──────────────
+
+
+def _paged_user(user_id: str, *, source_type: str = "1") -> User:
+    """Build a minimal User for pagination fixtures."""
+    return User(
+        id=user_id,
+        name=f"User {user_id}",
+        user_id=f"user.{user_id}",
+        schedule_relay="",
+        web_relay=None,
+        private_pin=None,
+        card_code=None,
+        lift_floor_num=None,
+        user_type=None,
+        source=None,
+        source_type=source_type,
+    )
+
+
+def _paging_list_users(pages: list[list[User]]) -> Any:
+    """Build a list_users side effect that pages like a real device.
+
+    A parameterless call returns only the first page, mirroring the
+    device behaviour that hid users from the lookup in issue #128.
+    """
+
+    def _side_effect(*_args: Any, page: int | None = None, **_kw: Any) -> list[User]:
+        """Return the page the device would return."""
+        if page is None:
+            return pages[0]
+        if 1 <= page <= len(pages):
+            return pages[page - 1]
+        return []
+
+    return _side_effect
+
+
+async def _setup_with_paged_users(
+    hass: HomeAssistant,
+    mock_config_entry_data_none: dict[str, Any],
+    mock_akuvox_device: AsyncMock,
+    mock_user_list: list[User],
+    side_effect: Any,
+) -> None:
+    """Set the entry up, then swap list_users for a paging stub."""
+    mock_akuvox_device.list_users.return_value = mock_user_list
+    await setup_entry(hass, mock_config_entry_data_none)
+    mock_akuvox_device.list_users.reset_mock()
+    mock_akuvox_device.list_users.side_effect = side_effect
+
+
+async def test_delete_user_found_on_later_page(
+    hass: HomeAssistant,
+    mock_config_entry_data_none: dict[str, Any],
+    mock_akuvox_device: AsyncMock,
+    mock_user_list: list[User],
+) -> None:
+    """Test a user beyond the first page is still resolved."""
+    pages = [
+        [_paged_user(str(i)) for i in range(10)],
+        [_paged_user("42")],
+    ]
+    await _setup_with_paged_users(
+        hass,
+        mock_config_entry_data_none,
+        mock_akuvox_device,
+        mock_user_list,
+        _paging_list_users(pages),
+    )
+
+    await hass.services.async_call(
+        DOMAIN,
+        "delete_user",
+        service_data={
+            "entity_id": ENTITY_ID,
+            "id": "42",
+        },
+        blocking=True,
+    )
+
+    mock_akuvox_device.delete_user.assert_called_once_with(id="42")
+
+
+async def test_delete_user_paged_lookup_ignored_page_param(
+    hass: HomeAssistant,
+    mock_config_entry_data_none: dict[str, Any],
+    mock_akuvox_device: AsyncMock,
+    mock_user_list: list[User],
+) -> None:
+    """Test a device ignoring ``page`` terminates with not found."""
+    same_page = [_paged_user(str(i)) for i in range(10)]
+
+    def _ignores_page(*_args: Any, **_kw: Any) -> list[User]:
+        """Return the same users regardless of the page asked for."""
+        return same_page
+
+    await _setup_with_paged_users(
+        hass,
+        mock_config_entry_data_none,
+        mock_akuvox_device,
+        mock_user_list,
+        _ignores_page,
+    )
+
+    with pytest.raises(HomeAssistantError, match="user '42' not found"):
+        await hass.services.async_call(
+            DOMAIN,
+            "delete_user",
+            service_data={
+                "entity_id": ENTITY_ID,
+                "id": "42",
+            },
+            blocking=True,
+        )
+
+    # Primary call plus two paged calls: the second repeats the first
+    # page's IDs, which stops the walk instead of looping forever.
+    assert mock_akuvox_device.list_users.call_count == 3
+    mock_akuvox_device.delete_user.assert_not_called()
+
+
+async def test_delete_user_paged_lookup_exhausts_pages(
+    hass: HomeAssistant,
+    mock_config_entry_data_none: dict[str, Any],
+    mock_akuvox_device: AsyncMock,
+    mock_user_list: list[User],
+) -> None:
+    """Test the walk stops on an empty page and reports not found."""
+    pages = [
+        [_paged_user(str(i)) for i in range(10)],
+        [_paged_user("20")],
+    ]
+    await _setup_with_paged_users(
+        hass,
+        mock_config_entry_data_none,
+        mock_akuvox_device,
+        mock_user_list,
+        _paging_list_users(pages),
+    )
+
+    with pytest.raises(HomeAssistantError, match="user '42' not found"):
+        await hass.services.async_call(
+            DOMAIN,
+            "delete_user",
+            service_data={
+                "entity_id": ENTITY_ID,
+                "id": "42",
+            },
+            blocking=True,
+        )
+
+    # Primary call, pages 1 and 2, then the empty page 3.
+    assert mock_akuvox_device.list_users.call_count == 4
+    mock_akuvox_device.delete_user.assert_not_called()
+
+
+async def test_delete_user_paged_lookup_error_reports_not_found(
+    hass: HomeAssistant,
+    mock_config_entry_data_none: dict[str, Any],
+    mock_akuvox_device: AsyncMock,
+    mock_user_list: list[User],
+) -> None:
+    """Test a failing paged request still yields the not-found error."""
+
+    def _reject_page(*_args: Any, page: int | None = None, **_kw: Any) -> list[User]:
+        """Fail any request that supplies a page parameter."""
+        if page is None:
+            return mock_user_list
+        msg = "page parameter unsupported"
+        raise AkuvoxDeviceError(msg)
+
+    await _setup_with_paged_users(
+        hass,
+        mock_config_entry_data_none,
+        mock_akuvox_device,
+        mock_user_list,
+        _reject_page,
+    )
+
+    with pytest.raises(HomeAssistantError, match="user '999' not found"):
+        await hass.services.async_call(
+            DOMAIN,
+            "delete_user",
+            service_data={
+                "entity_id": ENTITY_ID,
+                "id": "999",
+            },
+            blocking=True,
+        )
+
+    mock_akuvox_device.delete_user.assert_not_called()
+
+
+async def test_delete_user_first_page_skips_fallback(
+    hass: HomeAssistant,
+    mock_config_entry_data_none: dict[str, Any],
+    mock_akuvox_device: AsyncMock,
+    mock_user_list: list[User],
+) -> None:
+    """Test the fallback is not used when the primary call matches."""
+    await _setup_with_paged_users(
+        hass,
+        mock_config_entry_data_none,
+        mock_akuvox_device,
+        mock_user_list,
+        _paging_list_users([mock_user_list]),
+    )
+
+    await hass.services.async_call(
+        DOMAIN,
+        "delete_user",
+        service_data={
+            "entity_id": ENTITY_ID,
+            "id": "42",
+        },
+        blocking=True,
+    )
+
+    mock_akuvox_device.delete_user.assert_called_once_with(id="42")
+    assert mock_akuvox_device.list_users.call_count == 1
+    assert mock_akuvox_device.list_users.call_args.kwargs["page"] is None
+
+
+async def test_delete_user_paged_lookup_page_cap(
+    hass: HomeAssistant,
+    mock_config_entry_data_none: dict[str, Any],
+    mock_akuvox_device: AsyncMock,
+    mock_user_list: list[User],
+) -> None:
+    """Test the paged walk stops at the hard page limit."""
+
+    def _endless(*_args: Any, page: int | None = None, **_kw: Any) -> list[User]:
+        """Return a fresh user for every page, forever."""
+        if page is None:
+            return [_paged_user("first")]
+        return [_paged_user(f"p{page}")]
+
+    await _setup_with_paged_users(
+        hass,
+        mock_config_entry_data_none,
+        mock_akuvox_device,
+        mock_user_list,
+        _endless,
+    )
+
+    with pytest.raises(HomeAssistantError, match="user '42' not found"):
+        await hass.services.async_call(
+            DOMAIN,
+            "delete_user",
+            service_data={
+                "entity_id": ENTITY_ID,
+                "id": "42",
+            },
+            blocking=True,
+        )
+
+    assert mock_akuvox_device.list_users.call_count == _USER_LOOKUP_MAX_PAGES + 1
+    mock_akuvox_device.delete_user.assert_not_called()
+
+
+async def test_delete_user_cloud_user_on_later_page(
+    hass: HomeAssistant,
+    mock_config_entry_data_none: dict[str, Any],
+    mock_akuvox_device: AsyncMock,
+    mock_user_list: list[User],
+) -> None:
+    """Test the cloud guard still applies on the fallback path."""
+    pages = [
+        [_paged_user(str(i)) for i in range(10)],
+        [_paged_user("99", source_type="2")],
+    ]
+    await _setup_with_paged_users(
+        hass,
+        mock_config_entry_data_none,
+        mock_akuvox_device,
+        mock_user_list,
+        _paging_list_users(pages),
+    )
+
+    with pytest.raises(ServiceValidationError, match="[Cc]loud"):
+        await hass.services.async_call(
+            DOMAIN,
+            "delete_user",
+            service_data={
+                "entity_id": ENTITY_ID,
+                "id": "99",
             },
             blocking=True,
         )
