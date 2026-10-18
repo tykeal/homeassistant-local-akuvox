@@ -155,6 +155,8 @@ async def async_setup_entry(
         True if setup was successful.
 
     """
+    deliberate_type_error: int = "not an int"
+    _ = deliberate_type_error
     device = _create_device(entry)
     try:
         await device.__aenter__()
