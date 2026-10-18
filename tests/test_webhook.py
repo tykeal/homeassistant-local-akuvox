@@ -13,7 +13,7 @@ from urllib.parse import urlencode
 from aiohttp import web
 from aiohttp.test_utils import make_mocked_request
 from homeassistant.core import HomeAssistant
-from pylocal_akuvox import AkuvoxUnsupportedError, Capability
+from pylocal_akuvox import AkuvoxUnsupportedError, Capability, User
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.local_akuvox.const import (
@@ -705,3 +705,99 @@ def test_build_action_urls_reraises_generation_error(
         else:
             msg = "Expected webhook URL generation to fail"
             raise AssertionError(msg)
+
+
+# ── Paginated user cache refresh (issue #321) ────────────────
+
+
+def _pin_user(uid: str, pin: str) -> User:
+    """Build a minimal User for webhook pagination tests."""
+    return User(
+        id=uid,
+        name=f"User {uid}",
+        user_id=f"user.{uid}",
+        schedule_relay="",
+        private_pin=pin,
+        source_type="1",
+    )
+
+
+async def test_refresh_user_cache_walks_pages() -> None:
+    """Test the background refresh caches users past the first page."""
+    first = _pin_user("1", "1111")
+    second = _pin_user("2", "2222")
+    pages: dict[int | None, list[User]] = {
+        None: [first],
+        1: [first],
+        2: [second],
+        3: [],
+    }
+
+    def _list_users(*, page: int | None = None) -> list[User]:
+        """Return the configured users for one page."""
+        return pages.get(page, [])
+
+    coordinator = MagicMock()
+    coordinator.device.list_users = AsyncMock(side_effect=_list_users)
+    coordinator.update_user_cache = MagicMock()
+    _refresh_in_flight.add("entry_pages")
+
+    await _refresh_user_cache(coordinator, "entry_pages")
+
+    assert "entry_pages" not in _refresh_in_flight
+    coordinator.update_user_cache.assert_called_once_with([first, second])
+
+
+async def test_refresh_user_cache_walk_timeout_keeps_users() -> None:
+    """Test a slow page does not discard already-fetched users."""
+    first = _pin_user("1", "1111")
+    second = _pin_user("2", "2222")
+
+    async def _list_users(*, page: int | None = None) -> list[User]:
+        """Return users, stalling on page 3 to exhaust the budget."""
+        if page == 2:
+            return [second]
+        if page == 3:
+            await asyncio.sleep(5)
+        return [first]
+
+    coordinator = MagicMock()
+    coordinator.device.list_users = AsyncMock(side_effect=_list_users)
+    coordinator.update_user_cache = MagicMock()
+    _refresh_in_flight.add("entry_slow")
+
+    # Deterministic clock: pages 1 and 2 see the full budget, page 3
+    # sees 0.1s remaining and stalls past it.
+    with (
+        patch(
+            "custom_components.local_akuvox.webhook._REFRESH_WALK_BUDGET",
+            10.0,
+        ),
+        patch(
+            "custom_components.local_akuvox.user_fetch.monotonic",
+            side_effect=[0.0, 0.0, 0.0, 9.9],
+        ),
+    ):
+        await _refresh_user_cache(coordinator, "entry_slow")
+
+    assert "entry_slow" not in _refresh_in_flight
+    coordinator.update_user_cache.assert_called_once_with([first, second])
+
+
+async def test_refresh_user_cache_walk_budget_exhausted() -> None:
+    """Test an exhausted walk budget still caches the baseline."""
+    first = _pin_user("1", "1111")
+    coordinator = MagicMock()
+    coordinator.device.list_users = AsyncMock(return_value=[first])
+    coordinator.update_user_cache = MagicMock()
+    _refresh_in_flight.add("entry_budget")
+
+    with patch(
+        "custom_components.local_akuvox.webhook._REFRESH_WALK_BUDGET",
+        0.0,
+    ):
+        await _refresh_user_cache(coordinator, "entry_budget")
+
+    assert "entry_budget" not in _refresh_in_flight
+    coordinator.update_user_cache.assert_called_once_with([first])
+    coordinator.device.list_users.assert_awaited_once_with(page=None)

@@ -22,6 +22,7 @@ from pylocal_akuvox import (
     Capability,
     DeviceCapabilities,
     DeviceInfo,
+    User,
 )
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
@@ -47,6 +48,7 @@ from custom_components.local_akuvox.relay_config import (
     _build_relay_config,
     _parse_config_int,
 )
+from custom_components.local_akuvox.user_fetch import MAX_USER_PAGES
 from tests.conftest import MOCK_MAC
 
 
@@ -881,7 +883,7 @@ async def test_coordinator_populates_user_cache(
     data = await coordinator._async_update_data()
 
     assert data.users == mock_user_list
-    device.list_users.assert_awaited_once_with(page=None)
+    device.list_users.assert_any_await(page=None)
 
 
 async def test_coordinator_user_cache_empty_on_no_users(
@@ -1106,3 +1108,291 @@ async def test_coordinator_reports_user_list_unsupported(
 
     assert data.users == []
     device.list_users.assert_not_awaited()
+
+
+# ── Paginated user cache (issue #321) ────────────────────────
+
+
+def _page_user(uid: str, pin: str) -> User:
+    """Build a minimal User for pagination tests."""
+    return User(
+        id=uid,
+        name=f"User {uid}",
+        user_id=f"user.{uid}",
+        schedule_relay="",
+        private_pin=pin,
+        source_type="1",
+    )
+
+
+def _paged_device(
+    pages: dict[int | None, list[User] | Exception],
+    *,
+    default: list[User] | Exception | None = None,
+) -> AsyncMock:
+    """Build a device mock whose list_users honours a page map.
+
+    Args:
+        pages: Mapping of page number (``None`` for the parameterless
+            baseline call) to the users or exception to produce.
+        default: Result for pages absent from ``pages``; an empty
+            list when omitted.
+
+    Returns:
+        A device AsyncMock with a page-aware ``list_users``.
+
+    """
+
+    def _list_users(*, page: int | None = None) -> list[User]:
+        """Return the configured users for one page."""
+        result = pages.get(page, [] if default is None else default)
+        if isinstance(result, Exception):
+            raise result
+        return result
+
+    device = AsyncMock()
+    device.list_users = AsyncMock(side_effect=_list_users)
+    return device
+
+
+def _requested_pages(device: AsyncMock) -> list[int | None]:
+    """Return the page arguments list_users was called with."""
+    return [call.kwargs.get("page") for call in device.list_users.await_args_list]
+
+
+async def test_user_cache_includes_users_past_first_page(
+    hass: HomeAssistant,
+) -> None:
+    """Test the cache collects users from every device page."""
+    first = _page_user("1", "1111")
+    second = _page_user("2", "2222")
+    third = _page_user("3", "3333")
+    device = _paged_device(
+        {
+            None: [first],
+            1: [first],
+            2: [second, third],
+            3: [],
+        }
+    )
+    coordinator = AkuvoxDataUpdateCoordinator(hass=hass, device=device)
+
+    await coordinator._async_fetch_users()
+
+    assert coordinator._cached_users == [first, second, third]
+
+
+async def test_user_cache_walk_continues_past_duplicate_first_page(
+    hass: HomeAssistant,
+) -> None:
+    """Test page 1 repeating the baseline does not end the walk."""
+    first = _page_user("1", "1111")
+    second = _page_user("2", "2222")
+    device = _paged_device(
+        {
+            None: [first],
+            1: [first],
+            2: [second],
+            3: [],
+        }
+    )
+    coordinator = AkuvoxDataUpdateCoordinator(hass=hass, device=device)
+
+    await coordinator._async_fetch_users()
+
+    assert coordinator._cached_users == [first, second]
+    assert 2 in _requested_pages(device)
+
+
+async def test_user_cache_stops_when_device_ignores_page(
+    hass: HomeAssistant,
+) -> None:
+    """Test a device ignoring page stops the walk without duplicates."""
+    first = _page_user("1", "1111")
+    second = _page_user("2", "2222")
+    device = _paged_device({}, default=[first, second])
+    coordinator = AkuvoxDataUpdateCoordinator(hass=hass, device=device)
+
+    await coordinator._async_fetch_users()
+
+    assert coordinator._cached_users == [first, second]
+    assert _requested_pages(device) == [None, 1, 2]
+
+
+async def test_user_cache_keeps_pages_fetched_before_failure(
+    hass: HomeAssistant,
+) -> None:
+    """Test a mid-walk failure retains everything already fetched."""
+    first = _page_user("1", "1111")
+    second = _page_user("2", "2222")
+    device = _paged_device(
+        {
+            None: [first],
+            1: [first],
+            2: [second],
+            3: AkuvoxDeviceError("page 3 exploded"),
+        }
+    )
+    coordinator = AkuvoxDataUpdateCoordinator(hass=hass, device=device)
+
+    await coordinator._async_fetch_users()
+
+    assert coordinator._cached_users == [first, second]
+
+
+async def test_user_cache_matches_baseline_when_page_rejected(
+    hass: HomeAssistant,
+) -> None:
+    """Test a device rejecting page yields exactly the baseline list."""
+    first = _page_user("1", "1111")
+    second = _page_user("2", "2222")
+    device = _paged_device(
+        {None: [first, second]},
+        default=AkuvoxDeviceError("page parameter unsupported"),
+    )
+    coordinator = AkuvoxDataUpdateCoordinator(hass=hass, device=device)
+
+    await coordinator._async_fetch_users()
+
+    assert coordinator._cached_users == [first, second]
+
+
+async def test_user_cache_deduplicates_overlapping_pages(
+    hass: HomeAssistant,
+) -> None:
+    """Test overlapping baseline and page 1 produce no duplicates."""
+    first = _page_user("1", "1111")
+    second = _page_user("2", "2222")
+    device = _paged_device(
+        {
+            None: [first, second],
+            1: [first, second],
+            2: [],
+        }
+    )
+    coordinator = AkuvoxDataUpdateCoordinator(hass=hass, device=device)
+
+    await coordinator._async_fetch_users()
+
+    assert coordinator._cached_users == [first, second]
+
+
+async def test_user_cache_keeps_id_less_baseline_users_once(
+    hass: HomeAssistant,
+) -> None:
+    """Test ID-less users survive from the baseline without duplicating."""
+    anonymous = User(
+        id=None,
+        name="No ID",
+        user_id="no.id",
+        schedule_relay="",
+        private_pin="0000",
+    )
+    paged = _page_user("2", "2222")
+    device = _paged_device(
+        {
+            None: [anonymous],
+            1: [anonymous, paged],
+            2: [],
+        }
+    )
+    coordinator = AkuvoxDataUpdateCoordinator(hass=hass, device=device)
+
+    await coordinator._async_fetch_users()
+
+    assert coordinator._cached_users == [anonymous, paged]
+
+
+async def test_user_cache_respects_page_cap(
+    hass: HomeAssistant,
+) -> None:
+    """Test the walk stops at the page cap on an endless device."""
+
+    def _list_users(*, page: int | None = None) -> list[User]:
+        """Return a fresh user for every requested page."""
+        if page is None:
+            return [_page_user("0", "0000")]
+        return [_page_user(str(page), f"{page:04d}")]
+
+    device = AsyncMock()
+    device.list_users = AsyncMock(side_effect=_list_users)
+    coordinator = AkuvoxDataUpdateCoordinator(hass=hass, device=device)
+
+    await coordinator._async_fetch_users()
+
+    assert device.list_users.await_count == MAX_USER_PAGES + 1
+    assert len(coordinator._cached_users) == MAX_USER_PAGES + 1
+
+
+async def test_get_user_by_pin_finds_user_on_later_page(
+    hass: HomeAssistant,
+) -> None:
+    """Test PIN lookup resolves a user that only exists on page 2."""
+    first = _page_user("1", "1111")
+    late = _page_user("2", "9999")
+    device = _paged_device(
+        {
+            None: [first],
+            1: [first],
+            2: [late],
+            3: [],
+        }
+    )
+    coordinator = AkuvoxDataUpdateCoordinator(hass=hass, device=device)
+
+    await coordinator._async_fetch_users()
+
+    assert coordinator.get_user_by_pin("9999") is late
+
+
+async def test_user_cache_walk_never_stops_on_baseline_subset(
+    hass: HomeAssistant,
+) -> None:
+    """Test pages that are subsets of the baseline keep the walk going."""
+    first = _page_user("1", "1111")
+    second = _page_user("2", "2222")
+    third = _page_user("3", "3333")
+    device = _paged_device(
+        {
+            None: [first, second, third],
+            1: [first],
+            2: [second],
+            3: [third],
+            4: [],
+        }
+    )
+    coordinator = AkuvoxDataUpdateCoordinator(hass=hass, device=device)
+
+    await coordinator._async_fetch_users()
+
+    assert coordinator._cached_users == [first, second, third]
+    assert _requested_pages(device) == [None, 1, 2, 3, 4]
+
+
+async def test_user_cache_keeps_walking_past_id_less_page(
+    hass: HomeAssistant,
+) -> None:
+    """Test a page of ID-less users neither stops nor skips the walk."""
+    first = _page_user("1", "1111")
+    anonymous = User(
+        id=None,
+        name="No ID",
+        user_id="no.id",
+        schedule_relay="",
+        private_pin="0000",
+    )
+    late = _page_user("3", "3333")
+    device = _paged_device(
+        {
+            None: [first],
+            1: [first],
+            2: [anonymous],
+            3: [late],
+            4: [],
+        }
+    )
+    coordinator = AkuvoxDataUpdateCoordinator(hass=hass, device=device)
+
+    await coordinator._async_fetch_users()
+
+    assert coordinator._cached_users == [first, anonymous, late]

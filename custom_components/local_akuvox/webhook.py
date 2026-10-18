@@ -5,7 +5,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import re
 from typing import TYPE_CHECKING, Final
@@ -34,6 +33,7 @@ from .const import (
     REFRESH_EVENT_TYPES,
 )
 from .sanitize import mask_webhook_id, sanitize_payload
+from .user_fetch import async_fetch_all_users
 
 if TYPE_CHECKING:
     from .coordinator import AkuvoxDataUpdateCoordinator
@@ -100,6 +100,15 @@ def _get_device_id(
 
 _refresh_in_flight: set[str] = set()
 
+# The baseline list_users call keeps the original 5 second budget: a
+# timeout there has fetched nothing, so nothing can be discarded. The
+# paged walk gets its own separate budget so a slow multi-page device
+# returns the users it did manage to fetch instead of raising and
+# throwing them away. Neither blocks the webhook handler, which only
+# schedules this coroutine as a background task.
+_REFRESH_BASELINE_TIMEOUT: Final = 5.0
+_REFRESH_WALK_BUDGET: Final = 15.0
+
 
 async def _refresh_user_cache(
     coordinator: AkuvoxDataUpdateCoordinator,
@@ -107,14 +116,18 @@ async def _refresh_user_cache(
 ) -> None:
     """Background task to refresh the user cache from the device.
 
+    Walks every device page so users past the first page reach the
+    cache (issue #321).
+
     Must not be awaited in the webhook handler path.
     Uses _refresh_in_flight to deduplicate concurrent calls.
 
     """
     try:
-        users = await asyncio.wait_for(
-            coordinator.device.list_users(page=None),
-            timeout=5.0,
+        users = await async_fetch_all_users(
+            coordinator.device.list_users,
+            baseline_timeout=_REFRESH_BASELINE_TIMEOUT,
+            walk_budget=_REFRESH_WALK_BUDGET,
         )
     except TimeoutError:
         _LOGGER.debug("User cache refresh timed out")
@@ -134,8 +147,7 @@ async def _refresh_user_cache(
     finally:
         _refresh_in_flight.discard(entry_id)
 
-    if users is not None:
-        coordinator.update_user_cache(users)
+    coordinator.update_user_cache(users)
 
 
 async def _resolve_user(

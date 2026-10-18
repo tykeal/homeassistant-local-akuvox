@@ -44,10 +44,16 @@ from .const import (
     RELAY_KEY_RE,
 )
 from .relay_config import RelayConfig, _build_relay_config
+from .user_fetch import async_fetch_all_users
 
 _LOGGER = logging.getLogger(__name__)
 
 _USER_CACHE_TTL_SECONDS = 300  # 5 minutes
+
+# The paged user walk must finish well inside the coordinator's
+# update interval so a slow multi-page device cannot stall the rest
+# of the refresh; it returns partial results when the budget runs out.
+_USER_WALK_BUDGET_SECONDS = 15.0
 
 
 @dataclass
@@ -291,9 +297,10 @@ class AkuvoxDataUpdateCoordinator(
     async def _async_fetch_users(self) -> None:
         """Fetch and cache user list from the device.
 
-        Skips the fetch if the cache was populated within the TTL
-        window.  Non-fatal: logs a warning on failure and keeps the
-        previous cache intact.
+        Walks every device page so users past the first page are
+        cached too (issue #321).  Skips the fetch if the cache was
+        populated within the TTL window.  Non-fatal: logs a warning on
+        failure and keeps the previous cache intact.
 
         """
         if (
@@ -307,8 +314,10 @@ class AkuvoxDataUpdateCoordinator(
             return
 
         try:
-            users = await list_users(page=None)
-            self._cached_users = users if users is not None else []
+            self._cached_users = await async_fetch_all_users(
+                list_users,
+                walk_budget=_USER_WALK_BUDGET_SECONDS,
+            )
             self._last_user_fetch = monotonic()
             if self.config_entry is not None:
                 await async_clear_unsupported_capability_issue(
