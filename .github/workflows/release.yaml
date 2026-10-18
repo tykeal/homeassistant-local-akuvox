@@ -222,6 +222,7 @@ jobs:
         with:
           include_dev: "false"
           sbom_format: "both"
+          python_version: "3.14"
 
       - name: "Upload SBOM artifacts"
         # yamllint disable-line rule:line-length
