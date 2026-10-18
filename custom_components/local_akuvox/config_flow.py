@@ -97,7 +97,7 @@ class AkuvoxConfigFlow(ConfigFlow, domain=DOMAIN):
         if user_input is None:
             return self.async_show_form(
                 step_id="user",
-                data_schema=vol.Schema(
+                data_schema=vol.Schema(  # type: ignore[arg-type]
                     {
                         vol.Required(CONF_HOST): str,
                         vol.Required(CONF_USE_SSL, default=False): bool,
@@ -109,7 +109,7 @@ class AkuvoxConfigFlow(ConfigFlow, domain=DOMAIN):
         if not host or not host.strip():
             return self.async_show_form(
                 step_id="user",
-                data_schema=vol.Schema(
+                data_schema=vol.Schema(  # type: ignore[arg-type]
                     {
                         vol.Required(CONF_HOST): str,
                         vol.Required(CONF_USE_SSL, default=False): bool,
@@ -143,7 +143,7 @@ class AkuvoxConfigFlow(ConfigFlow, domain=DOMAIN):
         if user_input is None:
             return self.async_show_form(
                 step_id="ssl",
-                data_schema=vol.Schema(
+                data_schema=vol.Schema(  # type: ignore[arg-type]
                     {
                         vol.Required(CONF_VERIFY_SSL, default=True): bool,
                     }
@@ -169,7 +169,7 @@ class AkuvoxConfigFlow(ConfigFlow, domain=DOMAIN):
         if user_input is None:
             return self.async_show_form(
                 step_id="auth",
-                data_schema=vol.Schema(
+                data_schema=vol.Schema(  # type: ignore[arg-type]
                     {
                         vol.Required(CONF_AUTH_METHOD, default=AUTH_NONE): vol.In(
                             [AUTH_NONE, AUTH_BASIC, AUTH_DIGEST]
@@ -203,7 +203,7 @@ class AkuvoxConfigFlow(ConfigFlow, domain=DOMAIN):
         if user_input is None:
             return self.async_show_form(
                 step_id="credentials",
-                data_schema=vol.Schema(
+                data_schema=vol.Schema(  # type: ignore[arg-type]
                     {
                         vol.Required(CONF_USERNAME): str,
                         vol.Required(CONF_PASSWORD): str,
@@ -280,7 +280,7 @@ class AkuvoxConfigFlow(ConfigFlow, domain=DOMAIN):
             ):
                 return self.async_show_form(
                     step_id="credentials",
-                    data_schema=vol.Schema(
+                    data_schema=vol.Schema(  # type: ignore[arg-type]
                         {
                             vol.Required(CONF_USERNAME): str,
                             vol.Required(CONF_PASSWORD): str,
@@ -290,7 +290,7 @@ class AkuvoxConfigFlow(ConfigFlow, domain=DOMAIN):
                 )
             return self.async_show_form(
                 step_id="auth",
-                data_schema=vol.Schema(
+                data_schema=vol.Schema(  # type: ignore[arg-type]
                     {
                         vol.Required(CONF_AUTH_METHOD, default=AUTH_NONE): vol.In(
                             [AUTH_NONE, AUTH_BASIC, AUTH_DIGEST]
@@ -337,7 +337,7 @@ class AkuvoxConfigFlow(ConfigFlow, domain=DOMAIN):
 
         return self.async_show_form(
             step_id="capabilities",
-            data_schema=vol.Schema(
+            data_schema=vol.Schema(  # type: ignore[arg-type]
                 {
                     vol.Required(
                         CONF_ATTEMPT_UNKNOWN_CAPABILITY,
@@ -398,7 +398,7 @@ class AkuvoxConfigFlow(ConfigFlow, domain=DOMAIN):
 
         return self.async_show_form(
             step_id="webhook",
-            data_schema=vol.Schema(
+            data_schema=vol.Schema(  # type: ignore[arg-type]
                 {
                     vol.Required(
                         CONF_WEBHOOK_ENABLED,

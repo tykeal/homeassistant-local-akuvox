@@ -104,7 +104,7 @@ class AkuvoxOptionsFlow(OptionsFlow):
                 }
                 return self.async_show_form(
                     step_id="init",
-                    data_schema=self._build_schema(current),
+                    data_schema=self._build_schema(current),  # type: ignore[arg-type]
                     errors=errors,
                 )
 
@@ -120,7 +120,7 @@ class AkuvoxOptionsFlow(OptionsFlow):
 
         return self.async_show_form(
             step_id="init",
-            data_schema=self._build_schema(current),
+            data_schema=self._build_schema(current),  # type: ignore[arg-type]
         )
 
     async def _async_handle_webhook_change(

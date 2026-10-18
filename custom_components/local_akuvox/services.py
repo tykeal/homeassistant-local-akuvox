@@ -368,7 +368,7 @@ def _register_report_services(hass: HomeAssistant) -> None:
         DOMAIN,
         SERVICE_RUN_CAPABILITY_REPORT,
         entity_domain=Platform.LOCK,
-        schema=SERVICE_RUN_CAPABILITY_REPORT_SCHEMA,
+        schema=SERVICE_RUN_CAPABILITY_REPORT_SCHEMA,  # type: ignore[arg-type]
         func=SERVICE_RUN_CAPABILITY_REPORT,
         supports_response=SupportsResponse.ONLY,
     )
