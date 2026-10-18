@@ -43,7 +43,7 @@ The service is called on an `AkuvoxLockEntity` instance.
             "name": "Jane Smith",
             "phone": None,
             "group": None,
-        }
+        },
     ]
 }
 ```
