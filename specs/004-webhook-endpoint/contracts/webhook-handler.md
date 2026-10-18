@@ -24,11 +24,11 @@ from homeassistant.components.webhook import async_register
 
 async_register(
     hass,
-    domain=DOMAIN,                          # "akuvox"
-    name=f"Akuvox {device_name}",           # Human-readable
+    domain=DOMAIN,  # "akuvox"
+    name=f"Akuvox {device_name}",  # Human-readable
     webhook_id=_get_config_value(entry, "webhook_id"),
-    handler=async_handle_webhook,           # Callback
-    allowed_methods=["GET"],                # Akuvox sends GET
+    handler=async_handle_webhook,  # Callback
+    allowed_methods=["GET"],  # Akuvox sends GET
 )
 ```
 
@@ -149,7 +149,7 @@ hass.bus.async_fire(
         "event_type": event_type,
         "payload": {
             "event": raw_event,
-            "status": status_value,                    # or None
+            "status": status_value,  # or None
             "device_user_id": user.id if user else None,
             "user_id": user.user_id if user else None,
             "username": user.name if user else None,
