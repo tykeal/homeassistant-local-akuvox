@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: 2026 Andrew Grimberg <tykeal@bardicgrove.org>
 
-# Runs on a new pull request, performs build and runs tests
+# Runs on pull requests and pushes to main, performs build and runs tests
 name: 'Python Build/Test'
 
 # yamllint disable-line rule:truthy
@@ -16,6 +16,9 @@ on:
         required: false
   pull_request:
     types: [opened, reopened, synchronize]
+    branches:
+      - main
+  push:
     branches:
       - main
 
