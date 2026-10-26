@@ -423,7 +423,7 @@ jobs:
     # Runs the hooks listed under 'ci.skip' in .pre-commit-config.yaml,
     # which pre-commit.ci is told not to run and nothing else covers
     # yamllint disable-line rule:line-length
-    uses: lfreleng-actions/generic-workflows/.github/workflows/linting.yaml@0ed9c16d59a3ff92afad23a7c1aba3ab61238b87  # v0.4.3
+    uses: lfreleng-actions/generic-workflows/.github/workflows/linting.yaml@9d4a5d5b7e30bcd26a0abffb5bf263fd11c13852  # v0.5.0
     with:
       ci_skipped: true
       # This repository carries its own configuration and the owning
@@ -441,7 +441,7 @@ jobs:
     # over entirely, so 'ci.skip' cannot reach it; commit_range is what
     # takes the hook to that stage in CI
     # yamllint disable-line rule:line-length
-    uses: lfreleng-actions/generic-workflows/.github/workflows/linting.yaml@0ed9c16d59a3ff92afad23a7c1aba3ab61238b87  # v0.4.3
+    uses: lfreleng-actions/generic-workflows/.github/workflows/linting.yaml@9d4a5d5b7e30bcd26a0abffb5bf263fd11c13852  # v0.5.0
     with:
       hooks: 'gitlint'
       # yamllint disable-line rule:line-length
