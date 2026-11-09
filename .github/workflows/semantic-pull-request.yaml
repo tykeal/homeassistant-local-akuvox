@@ -24,7 +24,7 @@ jobs:
     # truncated single-commit subjects for long dependency names that
     # otherwise trip validateSingleCommitMatchesPrTitle.
     # yamllint disable-line rule:line-length
-    uses: lfit/releng-reusable-workflows/.github/workflows/reuse-semantic-pull-request.yaml@fb907909b12bbaf262de6b24fcafd181cabe6b24  # v0.10.4
+    uses: lfit/releng-reusable-workflows/.github/workflows/reuse-semantic-pull-request.yaml@fc3aea6f1ec56737c3cdd8fe1c46cbbb7209394b  # v0.11.1
     permissions:
       contents: read
       pull-requests: read  # Gate step queries the PR API (avoids 403)
