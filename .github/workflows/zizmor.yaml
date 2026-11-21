@@ -1,0 +1,51 @@
+---
+# SPDX-FileCopyrightText: 2026 Andrew Grimberg <tykeal@bardicgrove.org>
+# SPDX-License-Identifier: Apache-2.0
+
+# Static security analysis of this repository's GitHub Actions workflows.
+name: 'Zizmor'
+
+# yamllint disable-line rule:truthy
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: "${{ github.workflow }}-${{ github.ref }}"
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  zizmor:
+    name: 'Zizmor'
+    runs-on: 'ubuntu-latest'
+    permissions:
+      contents: read
+    timeout-minutes: 10
+    steps:
+      # yamllint disable-line rule:line-length
+      - uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
+        with:
+          egress-policy: 'audit'
+
+      - name: 'Checkout repository'
+        # yamllint disable-line rule:line-length
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: 'Run zizmor'
+        # yamllint disable-line rule:line-length
+        uses: zizmorcore/zizmor-action@45d7276c9ca790aabd705e31ca99c6185c3e76dd # v0.8.1
+        with:
+          inputs: '.'
+          version: '1.31.1'
+          persona: 'auditor'
+          online-audits: 'true'
+          config: '.github/zizmor.yml'
+          advanced-security: 'false'
+          annotations: 'true'

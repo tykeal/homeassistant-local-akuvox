@@ -1,0 +1,39 @@
+---
+# SPDX-FileCopyrightText: 2026 Andrew Grimberg <tykeal@bardicgrove.org>
+# SPDX-License-Identifier: Apache-2.0
+
+default_branch: main
+collapse_pre_releases: true
+stop_at_branch_base: false
+sections:
+  - [upgrade, Upgrade Notes]
+  - [features, New Features]
+  - [fixes, Bug Fixes]
+  - [deprecations, Deprecation Notes]
+  - [security, Security Issues]
+semver_major: []
+semver_minor: []
+semver_patch: []
+template: |
+  ---
+  # Write each item in Markdown. Delete every section you do not use,
+  # including this comment.
+  # prelude: |
+  #   Optional release summary, rendered above all sections.
+  upgrade:
+    - |
+      Action an operator must take when upgrading, such as a changed
+      option or a minimum Home Assistant version.
+  features:
+    - |
+      A new capability, described from the user's point of view.
+  fixes:
+    - |
+      A user-visible bug that is now fixed.
+  deprecations:
+    - |
+      Something that still works but will be removed later, and what to
+      use instead.
+  security:
+    - |
+      A security issue that is now fixed.

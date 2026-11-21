@@ -1,0 +1,8 @@
+---
+# SPDX-FileCopyrightText: 2026 Andrew Grimberg <tykeal@bardicgrove.org>
+# SPDX-License-Identifier: Apache-2.0
+
+features:
+  - |
+    Release drafts now include operator-written notes from pull requests
+    alongside the categorized pull request changelog.

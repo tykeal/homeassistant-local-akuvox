@@ -1,0 +1,11 @@
+---
+# SPDX-FileCopyrightText: 2026 Andrew Grimberg <tykeal@bardicgrove.org>
+# SPDX-License-Identifier: Apache-2.0
+
+# Keep accepted findings suppressed inline beside the affected workflow
+# line, so each exception remains visible with the code it excuses.
+rules:
+  unpinned-uses:
+    config:
+      policies:
+        '*': hash-pin

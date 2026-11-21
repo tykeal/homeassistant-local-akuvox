@@ -34,7 +34,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      pull-requests: read
+      pull-requests: read  # Metadata action reads PR files and commits
     timeout-minutes: 5
     steps:
       # yamllint disable-line rule:line-length
@@ -46,11 +46,12 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: "Gather repository metadata"
         id: repo-metadata
         # yamllint disable-line rule:line-length
-        uses: lfreleng-actions/repository-metadata-action@f0e5d2d8dc1154a5d702b75acc551eff6ba072dc  # v0.5.1
+        uses: lfreleng-actions/repository-metadata-action@cdfdc1d571dd45da13a8ef15439f330923040633  # v0.5.3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_summary: 'true'
@@ -65,7 +66,7 @@ jobs:
       && github.event.inputs.clear_cache == 'true'
     runs-on: ubuntu-latest
     permissions:
-      actions: write
+      actions: write  # Clear Python Caches deletes Actions caches
     timeout-minutes: 5
     env:
       GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
@@ -153,6 +154,8 @@ jobs:
 
       # yamllint disable-line rule:line-length
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: 'Build Python project'
         id: python-build
@@ -180,6 +183,8 @@ jobs:
 
       # yamllint disable-line rule:line-length
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: "Python tests [pytest] ${{ matrix.python-version }}"
         # yamllint disable-line rule:line-length
@@ -213,6 +218,8 @@ jobs:
 
       # yamllint disable-line rule:line-length
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: "Audit dependencies ${{ matrix.python-version }}"
         continue-on-error: "${{ vars.NO_BLOCK_AUDIT_FAIL == 'true' }}"
@@ -241,6 +248,8 @@ jobs:
 
       # yamllint disable-line rule:line-length
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: "Generate SBOM"
         id: sbom
@@ -262,12 +271,15 @@ jobs:
           retention-days: 45
 
       - name: "SBOM summary"
+        env:
+          SBOM_COUNT: "${{ steps.sbom.outputs.component_count }}"
+          SBOM_TOOL: "${{ steps.sbom.outputs.dependency_manager }}"
         run: |
             # SBOM summary
             {
               echo "## SBOM Summary"
-              echo "SBOM count: ${{ steps.sbom.outputs.component_count }}"
-              echo "Tool used: ${{ steps.sbom.outputs.dependency_manager }}"
+              echo "SBOM count: ${SBOM_COUNT}"
+              echo "Tool used: ${SBOM_TOOL}"
             } >> "$GITHUB_STEP_SUMMARY"
 
   grype:
@@ -286,6 +298,8 @@ jobs:
 
       # yamllint disable-line rule:line-length
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: "Download SBOM artefact"
         # yamllint disable-line rule:line-length

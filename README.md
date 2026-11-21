@@ -221,6 +221,27 @@ data:
   private_pin: "5678"
 ```
 
+## Release Notes
+
+Release notes live in `releasenotes/notes/` as
+[reno](https://docs.openstack.org/reno/latest/) snippets written in
+Markdown. Add one in the same pull request as the change it describes:
+
+```bash
+uv run reno new <slug>
+uv run reno lint
+```
+
+Keep only the applicable sections (`upgrade`, `features`, `fixes`,
+`deprecations`, or `security`). A breaking change (a `Type!:` title or
+the `breaking-change` label) must include a note. The draft GitHub
+release renders notes added since the latest release tag above the
+categorized pull request list. Preview the unreleased notes with:
+
+```bash
+uv run python scripts/render_release_notes.py
+```
+
 ## Troubleshooting
 
 ### Cannot connect to device

@@ -98,8 +98,8 @@ repos:
           (?x)
           ^.specify/scripts/
 
-  - repo: https://github.com/Mateusz-Grzelinski/actionlint-py
-    rev: 357f7eec6dec49bf7693dc0dbec30212226d5492  # frozen: v1.7.12.25
+  - repo: https://github.com/kjanat/actionlint
+    rev: 220b76cfa568e00ed8b3c476898f849a722b88e2  # frozen: v1.17.1
     hooks:
       - id: actionlint
 
@@ -187,10 +187,10 @@ repos:
         name: mypy
         verbose: true
         language: system
-        entry: uv run mypy custom_components tests
+        entry: uv run mypy custom_components scripts tests
         files: >-
           (?x)^(
-          (custom_components|tests)/.*\.py
+          (custom_components|scripts|tests)/.*\.py
           |pyproject\.toml
           |uv\.lock
           |\.pre-commit-config\.yaml

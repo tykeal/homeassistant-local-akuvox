@@ -32,6 +32,11 @@ dev = [
     "pytest-cov>=7.0.0",
     "pytest-homeassistant-custom-component>=0.13.344",
     "ruff>=0.15.22",
+    "types-PyYAML>=6.0.12",
+    {include-group = "releasenotes"},
+]
+releasenotes = [
+    "reno>=4.1.0",
 ]
 
 [tool.ruff]
@@ -78,6 +83,7 @@ module = [
     "pylocal_akuvox.*",
     "homeassistant.*",
     "pytest_homeassistant_custom_component.*",
+    "reno.*",
 ]
 ignore_missing_imports = true
 
