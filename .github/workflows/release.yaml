@@ -435,7 +435,7 @@ jobs:
           # Strip leading 'v' if present
           VERSION="${TAG#v}"
           echo "Setting version to: $VERSION"
-          cd "${{ github.workspace }}/custom_components/local_akuvox"
+          cd "${GITHUB_WORKSPACE}/custom_components/local_akuvox"
           jq --arg v "$VERSION" '.version = $v' manifest.json \
             > manifest.tmp && mv manifest.tmp manifest.json
           echo "Updated manifest.json:"
@@ -445,9 +445,9 @@ jobs:
         shell: bash
         run: |
           # Create ZIP of the integration directory
-          cd "${{ github.workspace }}/custom_components/local_akuvox"
+          cd "${GITHUB_WORKSPACE}/custom_components/local_akuvox"
           zip -r \
-            "${{ github.workspace }}/local_akuvox.zip" \
+            "${GITHUB_WORKSPACE}/local_akuvox.zip" \
             ./ \
             -x '*__pycache__/*' '*.pyc'
 

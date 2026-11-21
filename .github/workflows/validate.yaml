@@ -44,11 +44,8 @@ jobs:
           persist-credentials: false
 
       - name: 'Validate with hassfest'
-        # zizmor: ignore[stale-action-refs]
-        # The action's default branch is the only current ref; its sole
-        # tag is from 2020, so a newer tagged ref does not exist.
         # yamllint disable-line rule:line-length
-        uses: home-assistant/actions/hassfest@86d4564712fa02543c808e3a693dd04f9d3f8361  # master (no tags published)
+        uses: home-assistant/actions/hassfest@86d4564712fa02543c808e3a693dd04f9d3f8361  # zizmor: ignore[stale-action-refs]; default branch only, no current tag
 
   hacs:
     name: 'HACS'
@@ -70,7 +67,7 @@ jobs:
 
       - name: 'Validate with HACS'
         # yamllint disable-line rule:line-length
-        uses: hacs/action@d556e736723344f83838d08488c983a15381059a  # v22.5.0
+        uses: hacs/action@d556e736723344f83838d08488c983a15381059a  # 22.5.0
         with:
           category: 'integration'
           ignore: 'brands'
