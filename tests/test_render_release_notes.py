@@ -179,6 +179,15 @@ def test_collect_notes_rejects_empty_sections(
         rrn.collect_notes(loader, ["v3.9.0-1"], SECTION_NAMES, "prelude")
 
 
+def test_collect_notes_accepts_prelude_only() -> None:
+    """A nonblank prelude alone is valid release-note content."""
+    loader = FakeLoader({"v3.9.0-1": {"a.yaml": {"prelude": "Summary."}}})
+
+    notes = rrn.collect_notes(loader, ["v3.9.0-1"], SECTION_NAMES, "prelude")
+
+    assert rrn.render_markdown(notes, SECTIONS) == "Summary."
+
+
 def test_render_without_notes_is_empty() -> None:
     """An empty collection of notes produces no output."""
     notes = rrn.RenderedNotes()

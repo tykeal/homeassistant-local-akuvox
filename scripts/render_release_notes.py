@@ -94,12 +94,12 @@ def collect_notes(
     for version in versions:
         for filename, sha in loader[version]:
             content = loader.parse_note_file(filename, sha)
-            has_section_content = False
             prelude = content.get(prelude_name)
             if prelude is not None and not isinstance(prelude, str):
                 raise ValueError(
                     f"{filename}: section {prelude_name!r} must be a string"
                 )
+            has_content = isinstance(prelude, str) and bool(prelude.strip())
             if isinstance(prelude, str) and prelude.strip():
                 notes.prelude.append(prelude)
             for name in section_names:
@@ -107,12 +107,12 @@ def collect_notes(
                 if items is None:
                     continue
                 nonblank_items = _nonblank_section_items(filename, name, items)
-                has_section_content = has_section_content or bool(nonblank_items)
+                has_content = has_content or bool(nonblank_items)
                 notes.sections.setdefault(name, []).extend(nonblank_items)
-            if not has_section_content:
+            if not has_content:
                 raise ValueError(
-                    f"{filename}: release note must contain a nonblank item "
-                    "in a configured section"
+                    f"{filename}: release note must contain nonblank content "
+                    "in the prelude or a configured section"
                 )
     return notes
 
