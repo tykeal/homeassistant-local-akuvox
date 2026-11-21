@@ -11,6 +11,9 @@
 # precedence over this
 # verbosity = 2
 
+# Load the combined title-exception rule below.
+extra-path=.github/gitlint_rules.py
+
 # By default gitlint will ignore merge commits. Set to 'false' to disable.
 # ignore-merge-commits=true
 
@@ -34,11 +37,8 @@ contrib=contrib-title-conventional-commits,contrib-body-requires-signed-off-by
 [title-max-length]
 line-length=72
 
-# Dependabot-generated shared-workflow bump subjects can exceed 72 characters.
-# Exempt only title length for these exact reusable-workflow repositories.
-[ignore-by-title]
+[ignore-dependabot-workflow-title]
 regex=^Chore: Bump (lfit/releng-reusable-workflows|lfreleng-actions/generic-workflows)/\.github/workflows/[^ ]+\.ya?ml$
-ignore=title-max-length
 
 # [title-must-not-contain-word]
 # Comma-separated list of words that should not occur in the title. Matching is
