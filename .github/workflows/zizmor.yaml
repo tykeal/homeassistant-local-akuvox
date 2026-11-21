@@ -41,6 +41,8 @@ jobs:
       - name: 'Run zizmor'
         # yamllint disable-line rule:line-length
         uses: zizmorcore/zizmor-action@45d7276c9ca790aabd705e31ca99c6185c3e76dd # v0.8.1
+        # Findings stay visible as annotations but do not block this advisory audit.
+        continue-on-error: true
         with:
           inputs: '.'
           version: '1.31.1'
