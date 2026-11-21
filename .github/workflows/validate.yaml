@@ -44,8 +44,9 @@ jobs:
           persist-credentials: false
 
       - name: 'Validate with hassfest'
+        # This SHA is on the default branch; its only tag dates to 2020.
         # yamllint disable-line rule:line-length
-        uses: home-assistant/actions/hassfest@86d4564712fa02543c808e3a693dd04f9d3f8361  # zizmor: ignore[stale-action-refs]; default branch only, no current tag
+        uses: home-assistant/actions/hassfest@86d4564712fa02543c808e3a693dd04f9d3f8361  # zizmor: ignore[stale-action-refs]
 
   hacs:
     name: 'HACS'
