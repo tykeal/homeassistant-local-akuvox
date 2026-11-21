@@ -202,6 +202,8 @@ def load_release_notes(repo_root: Path, version: str | None) -> str:
     from reno import loader as reno_loader
 
     conf = reno_config.Config(str(repo_root), RELNOTES_DIR)
+    if version is not None:
+        conf.override(branch=version, collapse_pre_releases=False)
     sections = [(s.name, s.title, s.section_level) for s in conf.sections]
     tags = git_tags(repo_root)
     with reno_loader.Loader(conf) as loader:

@@ -7,6 +7,7 @@ from __future__ import annotations
 import importlib.util
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -42,6 +43,13 @@ class FakeLoader:
     def __init__(self, notes: dict[str, dict[str, dict[str, Any]]]) -> None:
         """Store ``{version: {filename: parsed content}}``."""
         self._notes = notes
+
+    def __enter__(self) -> FakeLoader:
+        """Return the loader from a context manager."""
+        return self
+
+    def __exit__(self, *_args: object) -> None:
+        """Support the Reno loader context-manager interface."""
 
     @property
     def versions(self) -> list[str]:
@@ -79,6 +87,47 @@ def test_select_versions(version: str | None, expected: list[str]) -> None:
 def test_select_versions_head_on_tag_has_no_unreleased_notes() -> None:
     """Right after a release, there are no unreleased notes."""
     assert rrn.select_versions(["v3.9.0", "v3.8.0"], {"v3.9.0", "v3.8.0"}, None) == []
+
+
+def test_load_release_notes_scans_explicit_tag(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Explicit versions scan that tag without collapsing prereleases."""
+    from reno import config as reno_config
+    from reno import loader as reno_loader
+
+    scan_options: dict[str, Any] = {}
+
+    class FakeConfig:
+        sections = [
+            SimpleNamespace(name="upgrade", title="Upgrade Notes", section_level=1)
+        ]
+        prelude_section_name = "prelude"
+
+        def __init__(self, *_args: object) -> None:
+            """Set up Reno config substitute."""
+
+        def override(self, **options: Any) -> None:
+            """Record scanner configuration."""
+            scan_options.update(options)
+
+    monkeypatch.setattr(reno_config, "Config", FakeConfig)
+    monkeypatch.setattr(
+        reno_loader,
+        "Loader",
+        lambda _conf: FakeLoader(
+            {"v3.9.0rc1": {"note.yaml": {"upgrade": ["Pre-release change."]}}}
+        ),
+    )
+    monkeypatch.setattr(rrn, "git_tags", lambda _root: {"v3.9.0rc1"})
+
+    assert rrn.load_release_notes(tmp_path, "v3.9.0rc1") == (
+        "### Upgrade Notes\n\n- Pre-release change."
+    )
+    assert scan_options == {
+        "branch": "v3.9.0rc1",
+        "collapse_pre_releases": False,
+    }
 
 
 def test_render_orders_sections_and_formats_multiline_items() -> None:
