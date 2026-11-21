@@ -72,6 +72,17 @@ def select_versions(
     return selected
 
 
+def _nonblank_section_items(filename: str, name: str, items: Any) -> list[str]:
+    """Validate a section value and return its nonblank text items."""
+    if isinstance(items, str):
+        items = [items]
+    elif not isinstance(items, list):
+        raise ValueError(f"{filename}: section {name!r} must be a list or string")
+    if any(not isinstance(item, str) for item in items):
+        raise ValueError(f"{filename}: section {name!r} items must be strings")
+    return [item for item in items if item.strip()]
+
+
 def collect_notes(
     loader: NoteLoader,
     versions: Sequence[str],
@@ -83,6 +94,7 @@ def collect_notes(
     for version in versions:
         for filename, sha in loader[version]:
             content = loader.parse_note_file(filename, sha)
+            has_section_content = False
             prelude = content.get(prelude_name)
             if prelude is not None and not isinstance(prelude, str):
                 raise ValueError(
@@ -94,18 +106,13 @@ def collect_notes(
                 items = content.get(name)
                 if items is None:
                     continue
-                if isinstance(items, str):
-                    items = [items]
-                elif not isinstance(items, list):
-                    raise ValueError(
-                        f"{filename}: section {name!r} must be a list or string"
-                    )
-                if any(not isinstance(item, str) for item in items):
-                    raise ValueError(
-                        f"{filename}: section {name!r} items must be strings"
-                    )
-                notes.sections.setdefault(name, []).extend(
-                    item for item in items if item.strip()
+                nonblank_items = _nonblank_section_items(filename, name, items)
+                has_section_content = has_section_content or bool(nonblank_items)
+                notes.sections.setdefault(name, []).extend(nonblank_items)
+            if not has_section_content:
+                raise ValueError(
+                    f"{filename}: release note must contain a nonblank item "
+                    "in a configured section"
                 )
     return notes
 

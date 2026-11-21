@@ -111,11 +111,22 @@ def test_render_orders_sections_and_formats_multiline_items() -> None:
     )
 
 
-def test_render_without_notes_is_empty() -> None:
-    """Empty and blank items produce no output."""
-    loader = FakeLoader({"v3.9.0-1": {"a.yaml": {"fixes": ["  \n"]}}})
+@pytest.mark.parametrize("section_content", [[], ["  \n"]])
+def test_collect_notes_rejects_empty_sections(
+    section_content: list[str],
+) -> None:
+    """A note with no nonblank configured section is rejected."""
+    loader = FakeLoader(
+        {"v3.9.0-1": {"a.yaml": {"fixes": section_content, "upgrade": []}}}
+    )
 
-    notes = rrn.collect_notes(loader, ["v3.9.0-1"], SECTION_NAMES, "prelude")
+    with pytest.raises(ValueError, match=r"a\.yaml: release note must contain"):
+        rrn.collect_notes(loader, ["v3.9.0-1"], SECTION_NAMES, "prelude")
+
+
+def test_render_without_notes_is_empty() -> None:
+    """An empty collection of notes produces no output."""
+    notes = rrn.RenderedNotes()
 
     assert rrn.render_markdown(notes, SECTIONS) == ""
 
