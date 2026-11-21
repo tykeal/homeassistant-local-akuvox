@@ -41,8 +41,9 @@ jobs:
     # behavior, including publishing the badge and code-scanning results.
     # yamllint disable-line rule:line-length
     uses: lfreleng-actions/security-workflows/.github/workflows/openssf-scorecard.yaml@b9d7b83b5696ab8388bcc11c3fe931563861e258  # v0.10.0
-    # The workflow makes no cache requests, including on the low-trust
-    # branch_protection_rule trigger.
+    # The branch_protection_rule trigger is low-trust. This job only
+    # analyzes the checked-out tree, so denying cache access is safe.
+    cache-mode: none
     permissions:
       contents: read  # Check out the repository to analyze.
       # Needed to upload the results to code-scanning dashboard.
@@ -50,4 +51,4 @@ jobs:
       # Needed to publish results and get a badge (see publish_results).
       id-token: write  # Publish results and mint the badge.
       # Required by upload-sarif to read run metadata on private repos.
-      actions: read
+      actions: read  # upload-sarif reads run info on private repos.

@@ -13,6 +13,10 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    # Allow a week for a newly published release to be yanked or
+    # superseded before Dependabot proposes it.
+    cooldown:
+      default-days: 7
     commit-message:
       prefix: "Chore"
     open-pull-requests-limit: 15
@@ -20,6 +24,8 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    cooldown:
+      default-days: 7
     commit-message:
       prefix: "Chore"
     open-pull-requests-limit: 15
@@ -27,6 +33,8 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    cooldown:
+      default-days: 7
     commit-message:
       prefix: "Chore"
     open-pull-requests-limit: 15

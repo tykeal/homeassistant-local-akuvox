@@ -11,18 +11,23 @@ on:
       - opened
       - synchronize
       - reopened
-  pull_request_target:
+      - edited
+  pull_request_target:  # zizmor: ignore[dangerous-triggers]
     types:
       - opened
       - synchronize
       - reopened
+      - edited
 
 permissions: {}
 
 concurrency:
   # yamllint disable-line rule:line-length
   group: ${{ format('al-{0}-pr-{1}', github.event_name, github.event.pull_request.number) }}
-  cancel-in-progress: true
+  # A title edit can add a label while another run is still executing.
+  # Queue every run so a cancelled check cannot block a required check.
+  cancel-in-progress: false
+  queue: max
 
 jobs:
   autolabel:
@@ -39,7 +44,7 @@ jobs:
     # from the PR — it only reads the PR title/body via GitHub API.
     permissions:
       contents: read
-      pull-requests: write
+      pull-requests: write  # Applies labels to the triggering PR
     runs-on: 'ubuntu-latest'
     timeout-minutes: 3
     steps:

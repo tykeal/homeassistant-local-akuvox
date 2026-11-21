@@ -7,6 +7,7 @@ version = 1
 path = [
     ".github/prompts/*",
     ".specify/**",
+    "releasenotes/notes/*",
     "**.json",
     ".github/agents/speckit**"
 ]

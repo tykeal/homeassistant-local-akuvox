@@ -8,37 +8,51 @@ change-template: "- $TITLE @$AUTHOR (#$NUMBER)"
 sort-direction: ascending
 categories:
   - title: "💥 Breaking Change 💥"
-    labels:
-      - "breaking-change"
+    semver-increment: major
+    when:
+      label: "breaking-change"
   - title: "✨ New Features ✨"
-    labels:
-      - "enhancement"
-      - "feature"
+    semver-increment: minor
+    when:
+      labels:
+        - "enhancement"
+        - "feature"
   - title: "🐛 Bug Fixes 🐛"
-    labels:
-      - "fix"
-      - "bugfix"
-      - "bug"
+    semver-increment: patch
+    when:
+      labels:
+        - "fix"
+        - "bugfix"
+        - "bug"
   - title: "⚡ Performance ⚡"
-    labels:
-      - "performance"
+    semver-increment: patch
+    when:
+      label: "performance"
   - title: "🔧 Maintenance 🔧"
-    labels:
-      - "chore"
-      - "documentation"
-      - "maintenance"
-      - "repo"
-      - "dependencies"
-      - "github_actions"
-      - "refactor"
-      - "style"
-      - "build"
-      - "revert"
+    collapse-after: 3
+    semver-increment: patch
+    when:
+      labels:
+        - "chore"
+        - "documentation"
+        - "maintenance"
+        - "repo"
+        - "dependencies"
+        - "github_actions"
+        - "refactor"
+        - "style"
+        - "build"
+        - "revert"
   - title: "🎓 Code Quality 🎓"
-    labels:
-      - "code-quality"
-      - "CI"
-      - "test"
+    collapse-after: 3
+    semver-increment: patch
+    when:
+      labels:
+        - "code-quality"
+        - "CI"
+        - "test"
+  - type: version-resolver
+    semver-increment: patch
 autolabeler:
   - label: "breaking-change"
     title:
@@ -76,34 +90,13 @@ autolabeler:
   - label: "build"
     title:
       - '/^build(\([^)]+\))?:/i'
-version-resolver:
-  major:
-    labels:
-      - "breaking-change"
-  minor:
-    labels:
-      - "feature"
-      - "enhancement"
-  patch:
-    labels:
-      - "bug"
-      - "fix"
-      - "bugfix"
-      - "performance"
-      - "refactor"
-      - "style"
-      - "build"
-      - "chore"
-      - "documentation"
-      - "CI"
-      - "test"
-      - "code-quality"
-      - "revert"
-  default: patch
+# The release-drafter workflow appends Reno notes to the header, above
+# the pull request changelog.
 # yamllint disable rule:line-length
-template: |
+header: |+
   [![Downloads for this release](https://img.shields.io/github/downloads/$OWNER/$REPOSITORY/v$RESOLVED_VERSION/total.svg)](https://github.com/$OWNER/$REPOSITORY/releases/tag/v$RESOLVED_VERSION)
 
+template: |
   $CHANGES
 
   ## Links

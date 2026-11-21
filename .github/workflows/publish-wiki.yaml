@@ -23,7 +23,7 @@ jobs:
   publish-wiki:
     name: 'Publish Wiki'
     permissions:
-      contents: write
+      contents: write  # Syncs content to this repository's wiki
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -36,9 +36,13 @@ jobs:
       - name: 'Checkout repository'
         # yamllint disable-line rule:line-length
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: 'Checkout wiki'
         # yamllint disable-line rule:line-length
+        # Credentials are needed by the later git push to the wiki repository.
+        # zizmor: ignore[artipacked]
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: ${{ github.repository }}.wiki

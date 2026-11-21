@@ -42,6 +42,7 @@ dist/
 .pytest_cache/
 .ruff_cache/
 htmlcov/
+.github/release-drafter-generated.yml
 
 # Documentation build
 docs/_build/
