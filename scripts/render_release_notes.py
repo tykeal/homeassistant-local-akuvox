@@ -84,14 +84,28 @@ def collect_notes(
         for filename, sha in loader[version]:
             content = loader.parse_note_file(filename, sha)
             prelude = content.get(prelude_name)
+            if prelude is not None and not isinstance(prelude, str):
+                raise ValueError(
+                    f"{filename}: section {prelude_name!r} must be a string"
+                )
             if isinstance(prelude, str) and prelude.strip():
                 notes.prelude.append(prelude)
             for name in section_names:
-                items = content.get(name) or []
+                items = content.get(name)
+                if items is None:
+                    continue
                 if isinstance(items, str):
                     items = [items]
+                elif not isinstance(items, list):
+                    raise ValueError(
+                        f"{filename}: section {name!r} must be a list or string"
+                    )
+                if any(not isinstance(item, str) for item in items):
+                    raise ValueError(
+                        f"{filename}: section {name!r} items must be strings"
+                    )
                 notes.sections.setdefault(name, []).extend(
-                    item for item in items if isinstance(item, str) and item.strip()
+                    item for item in items if item.strip()
                 )
     return notes
 
@@ -226,7 +240,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.version is not None and args.version not in git_tags(args.repo_root):
         sys.stderr.write(f"error: {args.version!r} is not a git tag\n")
         return 2
-    output = load_release_notes(args.repo_root, args.version)
+    try:
+        output = load_release_notes(args.repo_root, args.version)
+    except ValueError as err:
+        sys.stderr.write(f"error: {err}\n")
+        return 1
     if args.release_drafter_config is not None:
         output = build_drafter_config(
             args.release_drafter_config.read_text(encoding="utf-8"), output

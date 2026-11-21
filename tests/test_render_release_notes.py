@@ -120,6 +120,14 @@ def test_render_without_notes_is_empty() -> None:
     assert rrn.render_markdown(notes, SECTIONS) == ""
 
 
+def test_collect_notes_rejects_invalid_section_types() -> None:
+    """Malformed section values fail with the note filename and section."""
+    loader = FakeLoader({"*working-copy*": {"bad.yaml": {"fixes": True}}})
+
+    with pytest.raises(ValueError, match=r"bad\.yaml: section 'fixes'"):
+        rrn.collect_notes(loader, ["*working-copy*"], SECTION_NAMES, "prelude")
+
+
 def test_drafter_config_unchanged_without_notes() -> None:
     """With no notes, use the committed config unchanged."""
     base = "---\nheader: |+\n  badge\n\ntemplate: |\n  $CHANGES\n"

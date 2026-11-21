@@ -91,3 +91,11 @@ jobs:
       - name: 'Lint release notes'
         if: steps.changes.outputs.changed == 'true'
         run: uv run --frozen --only-group releasenotes reno lint
+
+      - name: 'Render release notes'
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          uv run --frozen --only-group releasenotes \
+            python scripts/render_release_notes.py \
+            --release-drafter-config .github/release-drafter.yml \
+            --output .github/release-drafter-generated.yml
