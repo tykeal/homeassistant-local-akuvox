@@ -7,7 +7,7 @@ from __future__ import annotations
 import importlib.util
 import sys
 from pathlib import Path
-from types import SimpleNamespace
+from types import ModuleType, SimpleNamespace
 from typing import Any
 
 import pytest
@@ -93,10 +93,15 @@ def test_load_release_notes_scans_explicit_tag(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     """Explicit versions scan that tag without collapsing prereleases."""
-    from reno import config as reno_config
-    from reno import loader as reno_loader
-
     scan_options: dict[str, Any] = {}
+    reno_package = ModuleType("reno")
+    reno_config = ModuleType("reno.config")
+    reno_loader = ModuleType("reno.loader")
+    monkeypatch.setattr(reno_package, "config", reno_config, raising=False)
+    monkeypatch.setattr(reno_package, "loader", reno_loader, raising=False)
+    monkeypatch.setitem(sys.modules, "reno", reno_package)
+    monkeypatch.setitem(sys.modules, "reno.config", reno_config)
+    monkeypatch.setitem(sys.modules, "reno.loader", reno_loader)
 
     class FakeConfig:
         sections = [
@@ -111,13 +116,14 @@ def test_load_release_notes_scans_explicit_tag(
             """Record scanner configuration."""
             scan_options.update(options)
 
-    monkeypatch.setattr(reno_config, "Config", FakeConfig)
+    monkeypatch.setattr(reno_config, "Config", FakeConfig, raising=False)
     monkeypatch.setattr(
         reno_loader,
         "Loader",
         lambda _conf: FakeLoader(
             {"v3.9.0rc1": {"note.yaml": {"upgrade": ["Pre-release change."]}}}
         ),
+        raising=False,
     )
     monkeypatch.setattr(rrn, "git_tags", lambda _root: {"v3.9.0rc1"})
 
