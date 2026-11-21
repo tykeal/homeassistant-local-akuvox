@@ -34,10 +34,20 @@ concurrency:
 jobs:
   openssf-scorecard:
     name: 'OpenSSF Scorecard'
+    # Migrated from lfit/releng-reusable-workflows, which is retiring,
+    # to the security lane in lfreleng-actions/security-workflows.
+    #
+    # Every input is optional and the defaults reproduce the previous
+    # behavior, including publishing the badge and code-scanning results.
     # yamllint disable-line rule:line-length
-    uses: lfit/releng-reusable-workflows/.github/workflows/reuse-openssf-scorecard.yaml@fb907909b12bbaf262de6b24fcafd181cabe6b24  # v0.10.4
+    uses: lfreleng-actions/security-workflows/.github/workflows/openssf-scorecard.yaml@b9d7b83b5696ab8388bcc11c3fe931563861e258  # v0.10.0
+    # The workflow makes no cache requests, including on the low-trust
+    # branch_protection_rule trigger.
     permissions:
+      contents: read  # Check out the repository to analyze.
       # Needed to upload the results to code-scanning dashboard.
       security-events: write  # Upload Scorecard results to code scanning.
       # Needed to publish results and get a badge (see publish_results).
       id-token: write  # Publish results and mint the badge.
+      # Required by upload-sarif to read run metadata on private repos.
+      actions: read
