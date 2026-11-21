@@ -40,7 +40,7 @@ jobs:
     # Every input is optional and the defaults reproduce the previous
     # behavior, including publishing the badge and code-scanning results.
     # yamllint disable-line rule:line-length
-    uses: lfreleng-actions/security-workflows/.github/workflows/openssf-scorecard.yaml@b9d7b83b5696ab8388bcc11c3fe931563861e258  # v0.10.0
+    uses: lfreleng-actions/security-workflows/.github/workflows/openssf-scorecard.yaml@6edd9018efda10b7a429d0bb4658b5aa4bb2cd3f  # v0.10.1
     # The branch_protection_rule trigger is low-trust. This job only
     # analyzes the checked-out tree, so denying cache access is safe.
     cache-mode: none
