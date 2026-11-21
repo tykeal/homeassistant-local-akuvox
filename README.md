@@ -236,7 +236,9 @@ Keep only the applicable sections (`upgrade`, `features`, `fixes`,
 `deprecations`, or `security`). A breaking change (a `Type!:` title or
 the `breaking-change` label) must include a note. The draft GitHub
 release renders notes added since the latest release tag above the
-categorized pull request list. Preview the unreleased notes with:
+categorized pull request list. Reno omits untracked snippets from its
+working-copy scan, so stage a newly created note before previewing.
+Preview the unreleased notes with:
 
 ```bash
 uv run python scripts/render_release_notes.py
