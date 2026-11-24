@@ -38,7 +38,7 @@ contrib=contrib-title-conventional-commits,contrib-body-requires-signed-off-by
 line-length=72
 
 [ignore-dependabot-workflow-title]
-regex=^Chore: Bump (lfit/releng-reusable-workflows|lfreleng-actions/generic-workflows)/\.github/workflows/[^ ]+\.ya?ml$
+regex=^Chore: Bump (lfit/releng-reusable-workflows|lfreleng-actions/generic-workflows|lfreleng-actions/security-workflows)/\.github/workflows/[^ ]+\.ya?ml$
 
 # [title-must-not-contain-word]
 # Comma-separated list of words that should not occur in the title. Matching is
