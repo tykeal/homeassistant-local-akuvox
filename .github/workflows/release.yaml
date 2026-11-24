@@ -39,7 +39,7 @@ jobs:
       - name: "Gather repository metadata"
         id: repo-metadata
         # yamllint disable-line rule:line-length
-        uses: lfreleng-actions/repository-metadata-action@cdfdc1d571dd45da13a8ef15439f330923040633  # v0.5.3
+        uses: lfreleng-actions/repository-metadata-action@f4417bda9e73aa169709682d07d6083453275c58  # v0.5.5
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_summary: 'true'
@@ -74,7 +74,7 @@ jobs:
       - name: 'Verify pushed tag'
         id: 'tag-validate'
         # yamllint disable-line rule:line-length
-        uses: lfreleng-actions/tag-validate-action@e2a80f310fd8f4f43e86e2abc5ffb032e8217a41  # v1.1.11
+        uses: lfreleng-actions/tag-validate-action@0c2ccc8074af58bc62d5eb30d07655e6e6069dd4  # v1.1.12
         with:
           token: "${{ secrets.GITHUB_TOKEN }}"
           require_type: 'semver'
@@ -167,7 +167,7 @@ jobs:
 
       - name: 'Test Python project [PYTEST]'
         # yamllint disable-line rule:line-length
-        uses: lfreleng-actions/python-test-action@644a2008072617b9cf4846ca2b9d385691f9dc67  # v1.3.3
+        uses: lfreleng-actions/python-test-action@557659d868428b3c4dac32df3bca0ce49f23c4f8  # v2.0.0
         with:
           python_version: "${{ matrix.python-version }}"
         env:
