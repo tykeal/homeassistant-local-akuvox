@@ -25,6 +25,7 @@ from pylocal_akuvox import (
     AuthMethod,
 )
 
+from .action_url_sync import async_detect_optional_action_url_keys
 from .capability_support import (
     apply_capability_options,
     async_clear_unsupported_flow_issue,
@@ -426,13 +427,6 @@ class AkuvoxConfigFlow(ConfigFlow, domain=DOMAIN):
             Exception: If webhook URL generation fails.
 
         """
-        enable_payload, disable_payload = build_action_urls(
-            self.hass,
-            webhook_id,
-            warn_http=enable,
-        )
-        payload = enable_payload if enable else disable_payload
-
         auth_method_str = self._data.get(
             CONF_AUTH_METHOD,
             AUTH_NONE,
@@ -467,6 +461,14 @@ class AkuvoxConfigFlow(ConfigFlow, domain=DOMAIN):
                     device,
                     attempt_unknown=get_mapping_attempt_unknown(self._data),
                 )
+                optional_keys = await async_detect_optional_action_url_keys(device)
+                enable_payload, disable_payload = build_action_urls(
+                    self.hass,
+                    webhook_id,
+                    warn_http=enable,
+                    optional_keys=optional_keys,
+                )
+                payload = enable_payload if enable else disable_payload
                 await device.set_device_config(payload)  # type: ignore[attr-defined]
             await async_clear_unsupported_flow_issue(
                 self.hass,

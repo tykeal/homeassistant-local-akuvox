@@ -21,6 +21,11 @@ from pylocal_akuvox import (
     AuthMethod,
 )
 
+from .action_url_sync import (
+    async_cancel_reconcile_task,
+    async_detect_optional_action_url_keys,
+    schedule_reconcile_task,
+)
 from .capability_support import (
     apply_capability_options,
     async_clear_unsupported_capability_issue,
@@ -213,6 +218,9 @@ async def async_setup_entry(
         await device.__aexit__(None, None, None)
         raise
 
+    if webhook_enabled and webhook_id is not None:
+        schedule_reconcile_task(hass, entry, coordinator, str(webhook_id))
+
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
 
     return True
@@ -253,6 +261,7 @@ async def async_unload_entry(
         async_unregister_webhook(hass, entry)
 
         coordinator: AkuvoxDataUpdateCoordinator = hass.data[DOMAIN].pop(entry.entry_id)
+        await async_cancel_reconcile_task(coordinator)
         await coordinator.device.__aexit__(None, None, None)
         _LOGGER.debug("Closed device session for %s", entry.title)
 
@@ -284,16 +293,18 @@ async def async_remove_entry(
         return
 
     try:
-        _, disable_payload = build_action_urls(
-            hass,
-            str(webhook_id),
-            warn_http=False,
-        )
         device = _create_device(entry)
         async with device:
             apply_capability_options(
                 device,
                 attempt_unknown=get_effective_attempt_unknown(entry),
+            )
+            optional_keys = await async_detect_optional_action_url_keys(device)
+            _, disable_payload = build_action_urls(
+                hass,
+                str(webhook_id),
+                warn_http=False,
+                optional_keys=optional_keys,
             )
             await device.set_device_config(disable_payload)  # type: ignore[attr-defined]
     except AkuvoxUnsupportedError as err:

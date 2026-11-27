@@ -18,6 +18,11 @@ from pylocal_akuvox import (
     AuthMethod,
 )
 
+from .action_url_sync import (
+    async_cancel_reconcile_task,
+    async_detect_optional_action_url_keys,
+    schedule_reconcile_task,
+)
 from .capability_support import (
     apply_capability_options,
     async_report_unsupported_capability,
@@ -39,6 +44,7 @@ from .const import (
     CONF_WEBHOOK_ID,
     DEFAULT_ATTEMPT_UNKNOWN_CAPABILITY,
     DEFAULT_REQUEST_DELAY,
+    DOMAIN,
     get_auth_method_map,
 )
 from .webhook import build_action_urls
@@ -162,19 +168,79 @@ class AkuvoxOptionsFlow(OptionsFlow):
         if webhook_id is None:
             return None
 
-        try:
-            enable_payload, disable_payload = build_action_urls(
-                self.hass,
-                str(webhook_id),
-                warn_http=now_enabled,
-            )
-        except Exception:
-            return "webhook_push_failed"
+        # A load-time reconcile could otherwise rewrite call URLs after
+        # this push (e.g. restoring them right after a disable)
+        coordinator = self._loaded_coordinator()
+        cancelled = await async_cancel_reconcile_task(coordinator)
 
-        payload = enable_payload if now_enabled else disable_payload
+        error = await self._async_push_webhook_payload(
+            {**current, **user_input},
+            str(webhook_id),
+            enable=bool(now_enabled),
+        )
+        if error is not None:
+            if cancelled and self._can_resume_reconcile(coordinator):
+                # The failed push saved nothing and no reload will follow
+                schedule_reconcile_task(
+                    self.hass,
+                    self._config_entry,
+                    coordinator,
+                    str(webhook_id),
+                )
+            return error
 
-        # Use merged settings for device connection
-        effective = {**current, **user_input}
+        user_input[CONF_WEBHOOK_ID] = str(webhook_id)
+        user_input[CONF_WEBHOOK_ENABLED] = now_enabled
+        return None
+
+    def _loaded_coordinator(self) -> Any:
+        """Return the loaded coordinator for this entry, if any.
+
+        Returns:
+            The entry's coordinator, or None when the entry is not loaded.
+
+        """
+        entry_data = self.hass.data.get(DOMAIN)
+        if entry_data is None:
+            return None
+        return entry_data.get(self._config_entry.entry_id)
+
+    def _can_resume_reconcile(self, coordinator: Any) -> bool:
+        """Return whether a cancelled reconcile may be restarted.
+
+        The entry must still be loaded with the same coordinator (its
+        device session open) and webhooks must still be enabled.
+
+        Args:
+            coordinator: The coordinator whose reconcile was cancelled.
+
+        Returns:
+            True if reconciliation can safely be restarted.
+
+        """
+        saved = {**self._config_entry.data, **self._config_entry.options}
+        return self._loaded_coordinator() is coordinator and bool(
+            saved.get(CONF_WEBHOOK_ENABLED, False),
+        )
+
+    async def _async_push_webhook_payload(
+        self,
+        effective: dict[str, Any],
+        webhook_id: str,
+        *,
+        enable: bool,
+    ) -> str | None:
+        """Push the webhook enable or disable payload to the device.
+
+        Args:
+            effective: Merged entry and submitted settings.
+            webhook_id: The webhook ID for URL generation.
+            enable: Whether to push the enable or disable payload.
+
+        Returns:
+            Error string if push failed, None on success.
+
+        """
         auth_method_str = effective.get(
             CONF_AUTH_METHOD,
             AUTH_NONE,
@@ -216,6 +282,14 @@ class AkuvoxOptionsFlow(OptionsFlow):
                     device,
                     attempt_unknown=get_mapping_attempt_unknown(effective),
                 )
+                optional_keys = await async_detect_optional_action_url_keys(device)
+                enable_payload, disable_payload = build_action_urls(
+                    self.hass,
+                    webhook_id,
+                    warn_http=enable,
+                    optional_keys=optional_keys,
+                )
+                payload = enable_payload if enable else disable_payload
                 await device.set_device_config(payload)  # type: ignore[attr-defined]
         except AkuvoxUnsupportedError as err:
             await async_report_unsupported_capability(
@@ -227,9 +301,6 @@ class AkuvoxOptionsFlow(OptionsFlow):
             return "webhook_push_failed"
         except Exception:
             return "webhook_push_failed"
-
-        user_input[CONF_WEBHOOK_ID] = str(webhook_id)
-        user_input[CONF_WEBHOOK_ENABLED] = now_enabled
         return None
 
     @staticmethod

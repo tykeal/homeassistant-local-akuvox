@@ -6,21 +6,35 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 from urllib.parse import urlencode
 
+import pytest
 from aiohttp import web
 from aiohttp.test_utils import make_mocked_request
 from homeassistant.core import HomeAssistant
-from pylocal_akuvox import AkuvoxUnsupportedError, Capability, User
+from pylocal_akuvox import AkuvoxUnsupportedError, Capability, DeviceConfig, User
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+from custom_components.local_akuvox.action_url_sync import (
+    async_detect_optional_action_url_keys,
+    async_reconcile_optional_action_urls,
+    supported_optional_action_url_keys,
+)
 from custom_components.local_akuvox.const import (
+    ACTIONURL_ENABLE_KEY,
+    ACTIONURL_KEYS,
+    ACTIONURL_METHOD_KEY,
     CONF_WEBHOOK_ID,
     DOMAIN,
     EVENT_WEBHOOK_RECEIVED,
+    KNOWN_EVENT_TYPES,
+    OPTIONAL_ACTIONURL_KEYS,
+    REFRESH_EVENT_TYPES,
 )
+from custom_components.local_akuvox.sanitize import mask_webhook_id
 from custom_components.local_akuvox.webhook import (
     _refresh_in_flight,
     _refresh_user_cache,
@@ -801,3 +815,449 @@ async def test_refresh_user_cache_walk_budget_exhausted() -> None:
     assert "entry_budget" not in _refresh_in_flight
     coordinator.update_user_cache.assert_called_once_with([first])
     coordinator.device.list_users.assert_awaited_once_with(page=None)
+
+
+# ── Call events (issue #330) ─────────────────────────────────
+
+_BASE_URL = "https://ha.example/api/webhook/abc"
+_MAKE_CALL_KEY = "Config.Features.ACTIONURL.MakeCall"
+_HANG_UP_KEY = "Config.Features.ACTIONURL.HangUp"
+_MAKE_CALL_URL = f"{_BASE_URL}?event=call_made&remote=$remote"
+_HANG_UP_URL = f"{_BASE_URL}?event=call_ended&remote=$remote"
+
+
+def _build(
+    hass: HomeAssistant,
+    **kwargs: Any,
+) -> tuple[dict[str, str], dict[str, str]]:
+    """Build action URLs against a fixed webhook base URL."""
+    with patch(
+        "custom_components.local_akuvox.webhook.async_generate_url",
+        return_value=_BASE_URL,
+    ):
+        return build_action_urls(hass, MOCK_WEBHOOK_ID, **kwargs)
+
+
+def test_call_event_constants() -> None:
+    """Test call keys and event types are defined as optional events."""
+    assert OPTIONAL_ACTIONURL_KEYS == {
+        "MakeCall": _MAKE_CALL_KEY,
+        "HangUp": _HANG_UP_KEY,
+    }
+    assert {"call_made", "call_ended"} <= KNOWN_EVENT_TYPES
+    assert not {"call_made", "call_ended"} & REFRESH_EVENT_TYPES
+    assert not set(OPTIONAL_ACTIONURL_KEYS.values()) & set(ACTIONURL_KEYS.values())
+
+
+def test_build_action_urls_default_excludes_call_keys(
+    hass: HomeAssistant,
+) -> None:
+    """Test the default payload is the unchanged base payload."""
+    enable, disable = _build(hass)
+    expected_keys = {
+        ACTIONURL_ENABLE_KEY,
+        ACTIONURL_METHOD_KEY,
+        *ACTIONURL_KEYS.values(),
+    }
+
+    assert set(enable) == expected_keys
+    assert set(disable) == expected_keys
+    assert _build(hass, optional_keys=()) == (enable, disable)
+
+
+def test_build_action_urls_includes_supported_call_keys(
+    hass: HomeAssistant,
+) -> None:
+    """Test supported optional keys are added to both payloads."""
+    enable, disable = _build(
+        hass,
+        optional_keys=frozenset({"HangUp", "MakeCall", "Bogus"}),
+    )
+
+    assert len(enable) == len(ACTIONURL_KEYS) + 4
+    assert enable[_MAKE_CALL_KEY] == _MAKE_CALL_URL
+    assert enable[_HANG_UP_KEY] == _HANG_UP_URL
+    assert disable[_MAKE_CALL_KEY] == ""
+    assert disable[_HANG_UP_KEY] == ""
+    assert list(enable)[-2:] == [_MAKE_CALL_KEY, _HANG_UP_KEY]
+
+
+def test_build_action_urls_single_call_key(
+    hass: HomeAssistant,
+) -> None:
+    """Test only the supported call key is added."""
+    enable, disable = _build(hass, optional_keys={"HangUp"})
+
+    assert _MAKE_CALL_KEY not in enable
+    assert enable[_HANG_UP_KEY] == _HANG_UP_URL
+    assert _MAKE_CALL_KEY not in disable
+    assert disable[_HANG_UP_KEY] == ""
+
+
+def _register_coordinator(hass: HomeAssistant) -> MagicMock:
+    """Register a mocked coordinator for the mock webhook ID."""
+    coordinator = MagicMock()
+    coordinator.async_refresh = AsyncMock()
+    coordinator.get_user_by_pin = MagicMock(return_value=None)
+    hass.data.setdefault(DOMAIN, {})
+    hass.data[DOMAIN]["webhook_registry"] = {
+        MOCK_WEBHOOK_ID: "test_entry_id",
+    }
+    hass.data[DOMAIN]["test_entry_id"] = coordinator
+    return coordinator
+
+
+async def _dispatch(
+    hass: HomeAssistant,
+    query: dict[str, str],
+) -> tuple[web.Response | None, list[Any]]:
+    """Dispatch a webhook request and collect fired events."""
+    events: list[Any] = []
+    hass.bus.async_listen(EVENT_WEBHOOK_RECEIVED, events.append)
+    with patch(
+        "custom_components.local_akuvox.webhook.dr.async_entries_for_config_entry",
+        return_value=[MagicMock(id="device_123")],
+    ):
+        response = await async_handle_webhook(
+            hass,
+            MOCK_WEBHOOK_ID,
+            _make_request(query),
+        )
+        await hass.async_block_till_done()
+    return response, events
+
+
+@pytest.mark.parametrize("event_type", ["call_made", "call_ended"])
+async def test_call_event_fires_with_remote(
+    hass: HomeAssistant,
+    event_type: str,
+) -> None:
+    """Test call events fire with remote and skip refresh and lookup."""
+    coordinator = _register_coordinator(hass)
+
+    response, events = await _dispatch(
+        hass,
+        {"event": event_type, "remote": "1001"},
+    )
+
+    assert response is not None
+    assert response.status == 200
+    assert len(events) == 1
+    data = events[0].data
+    assert data["event_type"] == event_type
+    assert data["device_id"] == "device_123"
+    assert data["payload"] == {
+        "event": event_type,
+        "status": None,
+        "remote": "1001",
+        "device_user_id": None,
+        "user_id": None,
+        "username": None,
+    }
+    coordinator.async_refresh.assert_not_awaited()
+    coordinator.get_user_by_pin.assert_not_called()
+
+
+async def test_call_event_without_remote(
+    hass: HomeAssistant,
+) -> None:
+    """Test a call event without remote fires with remote None."""
+    _register_coordinator(hass)
+
+    _, events = await _dispatch(hass, {"event": "call_made"})
+
+    assert len(events) == 1
+    assert events[0].data["payload"]["remote"] is None
+
+
+async def test_relay_event_payload_includes_remote_none(
+    hass: HomeAssistant,
+) -> None:
+    """Test existing events gain a null remote field only."""
+    _register_coordinator(hass)
+
+    _, events = await _dispatch(
+        hass,
+        {"event": "relay_a_triggered", "status": "1"},
+    )
+
+    assert events[0].data["payload"] == {
+        "event": "relay_a_triggered",
+        "status": "1",
+        "remote": None,
+        "device_user_id": None,
+        "user_id": None,
+        "username": None,
+    }
+
+
+async def test_missing_event_warning_redacts_remote(
+    hass: HomeAssistant,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test the missing-event warning never logs the remote number."""
+    _register_coordinator(hass)
+
+    response, events = await _dispatch(
+        hass,
+        {"remote": "5551234", "status": "1"},
+    )
+
+    assert response is not None
+    assert response.status == 400
+    assert not events
+    assert "5551234" not in caplog.text
+    assert "Webhook missing 'event' parameter" in caplog.text
+
+
+# ── Optional key detection ───────────────────────────────────
+
+
+@pytest.mark.parametrize(
+    ("config", "expected"),
+    [
+        (
+            DeviceConfig(data={_MAKE_CALL_KEY: "", _HANG_UP_KEY: "x"}),
+            frozenset({"MakeCall", "HangUp"}),
+        ),
+        ({_HANG_UP_KEY: ""}, frozenset({"HangUp"})),
+        (DeviceConfig(data={"Config.Other": "1"}), frozenset()),
+        ({}, frozenset()),
+        (None, frozenset()),
+        (42, frozenset()),
+        (f"{_MAKE_CALL_KEY}{_HANG_UP_KEY}", frozenset()),
+    ],
+)
+def test_supported_optional_action_url_keys(
+    config: object,
+    expected: frozenset[str],
+) -> None:
+    """Test supported optional keys are detected by key presence."""
+    assert supported_optional_action_url_keys(config) == expected
+
+
+async def test_detect_optional_keys_success() -> None:
+    """Test detection reads the device config."""
+    device = MagicMock()
+    device.get_device_config = AsyncMock(
+        return_value=DeviceConfig(data={_MAKE_CALL_KEY: ""}),
+    )
+
+    assert await async_detect_optional_action_url_keys(device) == frozenset(
+        {"MakeCall"}
+    )
+
+
+async def test_detect_optional_keys_not_callable() -> None:
+    """Test detection falls back when get_device_config is missing."""
+    device = MagicMock(spec=[])
+
+    assert await async_detect_optional_action_url_keys(device) == frozenset()
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        AkuvoxUnsupportedError(
+            "nope",
+            capability=Capability.DEVICE_CONFIG_GET,
+            reason="capability_missing",
+        ),
+        RuntimeError("boom"),
+    ],
+)
+async def test_detect_optional_keys_read_failure(error: Exception) -> None:
+    """Test detection falls back to no optional keys on read errors."""
+    device = MagicMock()
+    device.get_device_config = AsyncMock(side_effect=error)
+
+    assert await async_detect_optional_action_url_keys(device) == frozenset()
+
+
+# ── Setup-time reconciliation ────────────────────────────────
+
+
+def _reconcile_entry(hass: HomeAssistant) -> MockConfigEntry:
+    """Return a config entry added to hass for reconciliation tests."""
+    entry = MockConfigEntry(domain=DOMAIN, data={CONF_WEBHOOK_ID: MOCK_WEBHOOK_ID})
+    entry.add_to_hass(hass)
+    return entry
+
+
+def _reconcile_device(config: Any) -> MagicMock:
+    """Return a mocked device with the given device config."""
+    device = MagicMock()
+    device.get_device_config = AsyncMock(return_value=config)
+    device.set_device_config = AsyncMock(return_value=None)
+    return device
+
+
+async def _reconcile(
+    hass: HomeAssistant,
+    device: Any,
+    *,
+    url: str = "http://ha.local/api/webhook/abc",
+) -> MockConfigEntry:
+    """Run reconciliation with a fixed generated webhook URL."""
+    entry = _reconcile_entry(hass)
+    with patch(
+        "custom_components.local_akuvox.webhook.async_generate_url",
+        return_value=url,
+    ):
+        await async_reconcile_optional_action_urls(
+            hass,
+            entry,
+            device,
+            MOCK_WEBHOOK_ID,
+        )
+    return entry
+
+
+async def test_reconcile_writes_only_differing_call_keys(
+    hass: HomeAssistant,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test reconciliation writes only call keys whose values differ."""
+    url = "http://ha.local/api/webhook/abc"
+    device = _reconcile_device(
+        DeviceConfig(
+            data={
+                _MAKE_CALL_KEY: "",
+                _HANG_UP_KEY: f"{url}?event=call_ended&remote=$remote",
+                ACTIONURL_ENABLE_KEY: "1",
+            }
+        )
+    )
+    caplog.set_level(logging.DEBUG)
+
+    await _reconcile(hass, device, url=url)
+
+    device.get_device_config.assert_awaited_once()
+    device.set_device_config.assert_awaited_once_with(
+        {_MAKE_CALL_KEY: f"{url}?event=call_made&remote=$remote"},
+    )
+    assert "Webhook URL uses HTTP" not in caplog.text
+    assert MOCK_WEBHOOK_ID not in caplog.text
+    assert url not in caplog.text
+    assert mask_webhook_id(MOCK_WEBHOOK_ID) in caplog.text
+
+
+async def test_reconcile_skips_when_values_match(
+    hass: HomeAssistant,
+) -> None:
+    """Test reconciliation does not write when call URLs already match."""
+    url = "http://ha.local/api/webhook/abc"
+    device = _reconcile_device(
+        {
+            _MAKE_CALL_KEY: f"{url}?event=call_made&remote=$remote",
+            _HANG_UP_KEY: f"{url}?event=call_ended&remote=$remote",
+        }
+    )
+
+    await _reconcile(hass, device, url=url)
+
+    device.set_device_config.assert_not_awaited()
+
+
+async def test_reconcile_skips_when_keys_missing(
+    hass: HomeAssistant,
+) -> None:
+    """Test reconciliation does not write when the device lacks call keys."""
+    device = _reconcile_device(DeviceConfig(data={"Config.Other": "1"}))
+
+    with patch(
+        "custom_components.local_akuvox.action_url_sync.build_action_urls",
+    ) as mock_build:
+        await _reconcile(hass, device)
+
+    mock_build.assert_not_called()
+    device.set_device_config.assert_not_awaited()
+
+
+async def test_reconcile_skips_without_get_device_config(
+    hass: HomeAssistant,
+) -> None:
+    """Test reconciliation returns when the device cannot read config."""
+    device = MagicMock(spec=["set_device_config"])
+    device.set_device_config = AsyncMock()
+
+    await _reconcile(hass, device)
+
+    device.set_device_config.assert_not_awaited()
+
+
+@pytest.mark.parametrize("fail_on", ["read", "write"])
+async def test_reconcile_reports_unsupported(
+    hass: HomeAssistant,
+    fail_on: str,
+) -> None:
+    """Test unsupported errors are reported without the device message."""
+    err = AkuvoxUnsupportedError(
+        f"rejected http://ha.local/api/webhook/{MOCK_WEBHOOK_ID}",
+        capability=Capability.DEVICE_CONFIG_SET,
+        device_class="E21V",
+        reason="capability_missing",
+    )
+    device = _reconcile_device(DeviceConfig(data={_MAKE_CALL_KEY: ""}))
+    if fail_on == "read":
+        device.get_device_config.side_effect = err
+    else:
+        device.set_device_config.side_effect = err
+
+    with patch(
+        "custom_components.local_akuvox.action_url_sync.async_report_unsupported_capability",
+        new_callable=AsyncMock,
+    ) as mock_report:
+        entry = await _reconcile(hass, device)
+
+    mock_report.assert_awaited_once()
+    report_args = mock_report.await_args
+    assert report_args is not None
+    assert report_args.args[1] is entry
+    reported = report_args.args[2]
+    assert isinstance(reported, AkuvoxUnsupportedError)
+    assert MOCK_WEBHOOK_ID not in str(reported)
+    assert reported.capability is Capability.DEVICE_CONFIG_SET
+    assert reported.device_class == "E21V"
+    assert reported.reason == "capability_missing"
+
+
+@pytest.mark.parametrize("fail_on", ["read", "url", "write"])
+async def test_reconcile_swallows_errors(
+    hass: HomeAssistant,
+    caplog: pytest.LogCaptureFixture,
+    fail_on: str,
+) -> None:
+    """Test unexpected reconciliation errors are logged, not raised."""
+    device = _reconcile_device(DeviceConfig(data={_MAKE_CALL_KEY: ""}))
+    if fail_on == "read":
+        device.get_device_config.side_effect = RuntimeError("boom")
+    elif fail_on == "write":
+        device.set_device_config.side_effect = RuntimeError("boom")
+    entry = _reconcile_entry(hass)
+
+    with patch(
+        "custom_components.local_akuvox.webhook.async_generate_url",
+        side_effect=RuntimeError("no url") if fail_on == "url" else None,
+        return_value="http://ha.local/api/webhook/abc",
+    ):
+        await async_reconcile_optional_action_urls(
+            hass,
+            entry,
+            device,
+            MOCK_WEBHOOK_ID,
+        )
+
+    assert "Failed to reconcile call action URLs" in caplog.text
+    assert MOCK_WEBHOOK_ID not in caplog.text
+
+
+async def test_reconcile_propagates_cancellation(
+    hass: HomeAssistant,
+) -> None:
+    """Test cancellation is not swallowed by reconciliation."""
+    device = _reconcile_device(None)
+    device.get_device_config.side_effect = asyncio.CancelledError
+
+    with pytest.raises(asyncio.CancelledError):
+        await _reconcile(hass, device)

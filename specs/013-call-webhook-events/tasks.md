@@ -42,14 +42,14 @@ capable of including them without changing the default payload.
 
 ### Tests (Phase 1)
 
-- [ ] T001 [P] Add failing tests in `tests/test_webhook.py` asserting
+- [X] T001 [P] Add failing tests in `tests/test_webhook.py` asserting
   `OPTIONAL_ACTIONURL_KEYS` maps `MakeCall`/`HangUp` to
   `Config.Features.ACTIONURL.MakeCall`/`.HangUp`, that `call_made` and
   `call_ended` are in `KNOWN_EVENT_TYPES` and not in
   `REFRESH_EVENT_TYPES`, and that the templates are
   `?event=call_made&remote=$remote` and
   `?event=call_ended&remote=$remote`. Covers FR-001 through FR-003.
-- [ ] T002 Add failing tests in `tests/test_webhook.py` for
+- [X] T002 Add failing tests in `tests/test_webhook.py` for
   `build_action_urls(..., optional_keys=...)`: default/empty → payloads
   identical to today's (10 base keys + `Enable`/`Method`); both keys →
   12 URLs in enable and 12 blanks in disable; one key → only that key;
@@ -57,10 +57,10 @@ capable of including them without changing the default payload.
 
 ### Implementation (Phase 1)
 
-- [ ] T003 Add `OPTIONAL_ACTIONURL_KEYS` and the two event types to
+- [X] T003 Add `OPTIONAL_ACTIONURL_KEYS` and the two event types to
   `custom_components/local_akuvox/const.py` (not to
   `REFRESH_EVENT_TYPES`). Covers FR-001, FR-003.
-- [ ] T004 Add `MakeCall`/`HangUp` entries to `_URL_TEMPLATES` and the
+- [X] T004 Add `MakeCall`/`HangUp` entries to `_URL_TEMPLATES` and the
   keyword-only `optional_keys: Collection[str] = ()` parameter to
   `build_action_urls()` in `custom_components/local_akuvox/webhook.py`,
   appending supported optional keys in `OPTIONAL_ACTIONURL_KEYS` order.
@@ -77,20 +77,20 @@ ______________________________________________________________________
 
 ### Tests (Phase 2)
 
-- [ ] T005 [P] [US1] Add failing handler tests in `tests/test_webhook.py`:
+- [X] T005 [P] [US1] Add failing handler tests in `tests/test_webhook.py`:
   `?event=call_made&remote=1001` and `?event=call_ended&remote=1001` fire
   `local_akuvox_webhook_received` with the right `event_type` and
   `payload.remote == "1001"`; missing `remote` → `None`; no
   `coordinator.async_refresh` scheduled and no user lookup; existing
   relay event payload now includes `remote: None` with other fields
   unchanged. Covers FR-003, FR-004, US1 scenarios 1–4.
-- [ ] T006 [US1] Add a failing test in `tests/test_webhook.py` that a
+- [X] T006 [US1] Add a failing test in `tests/test_webhook.py` that a
   request with `remote` but no `event` returns 400 and the warning log
   does not contain the `remote` value. Covers FR-005.
 
 ### Implementation (Phase 2)
 
-- [ ] T007 [US1] In `async_handle_webhook`
+- [X] T007 [US1] In `async_handle_webhook`
   (`custom_components/local_akuvox/webhook.py`) add
   `"remote": query_params.get("remote")` to the known-event payload and
   redact `remote` (e.g. `"[REDACTED]"`) in the sanitized parameters
@@ -107,45 +107,45 @@ exposes them; any detection failure falls back to the base payload.
 
 ### Tests (Phase 3)
 
-- [ ] T008 [P] [US2] Add failing unit tests in `tests/test_webhook.py` for
+- [X] T008 [P] [US2] Add failing unit tests in `tests/test_webhook.py` for
   `supported_optional_action_url_keys()` (both, one, none, `DeviceConfig`
   and plain `dict` inputs, `None`/non-container → empty) and
   `async_detect_optional_action_url_keys()` (missing/non-callable
   `get_device_config`, `AkuvoxUnsupportedError`, generic exception,
   success). Covers FR-007, FR-008.
-- [ ] T009 [P] [US2] Add failing tests in `tests/test_config_flow.py`:
+- [X] T009 [P] [US2] Add failing tests in `tests/test_config_flow.py`:
   webhook enable with a device config containing both call keys pushes a
   payload including both call URLs; without the keys pushes exactly the
   base payload; `get_device_config` raising still pushes the base payload
   and creates the entry. Covers FR-009, US2 scenarios 1–4.
-- [ ] T010 [P] [US2] Add failing tests in `tests/test_options_flow.py`:
+- [X] T010 [P] [US2] Add failing tests in `tests/test_options_flow.py`:
   toggling webhook on with keys present includes call URLs; toggling off
   with keys present blanks them; keys absent or read failure → base
   enable/disable payload; build failure still returns
   `webhook_push_failed`. Covers FR-010, US2 scenarios 1–5.
-- [ ] T011 [P] [US2] Add failing tests in `tests/test_init.py` for
+- [X] T011 [P] [US2] Add failing tests in `tests/test_init.py` for
   `async_remove_entry`: keys present → disable payload blanks call keys;
   keys absent or read failure → base disable payload. Covers FR-011,
   US2 scenario 5.
 
 ### Implementation (Phase 3)
 
-- [ ] T012 [US2] Add `supported_optional_action_url_keys()` and
+- [X] T012 [US2] Add `supported_optional_action_url_keys()` and
   `async_detect_optional_action_url_keys()` to
   `custom_components/local_akuvox/webhook.py` per
   `contracts/action-url-payload.md` (debug logs only, no URLs or config
   values). Covers FR-007, FR-008, FR-016.
-- [ ] T013 [US2] Update `ConfigFlow._async_push_webhook_config` in
+- [X] T013 [US2] Update `ConfigFlow._async_push_webhook_config` in
   `custom_components/local_akuvox/config_flow.py` to detect on the
   entered session after `apply_capability_options()` and pass
   `optional_keys` to `build_action_urls()`. Covers FR-009.
-- [ ] T014 [US2] Update `_async_handle_webhook_change` in
+- [X] T014 [US2] Update `_async_handle_webhook_change` in
   `custom_components/local_akuvox/options_flow.py` the same way, keeping
   every failure mapped to `webhook_push_failed`. Covers FR-010.
-- [ ] T015 [US2] Update `async_remove_entry` in
+- [X] T015 [US2] Update `async_remove_entry` in
   `custom_components/local_akuvox/__init__.py` to detect before building
   the disable payload (`warn_http=False`). Covers FR-011.
-- [ ] T016 [US2] Adjust existing tests in `tests/test_config_flow.py`,
+- [X] T016 [US2] Adjust existing tests in `tests/test_config_flow.py`,
   `tests/test_options_flow.py`, and `tests/test_init.py` where the
   build-inside-session ordering changes call expectations. In particular,
   `test_options_webhook_url_build_failure_shows_error` in
@@ -166,7 +166,7 @@ without ever blocking setup.
 
 ### Tests (Phase 4)
 
-- [ ] T017 [US3] Add failing unit tests in `tests/test_webhook.py` for
+- [X] T017 [US3] Add failing unit tests in `tests/test_webhook.py` for
   `async_reconcile_optional_action_urls()`: values differ → one
   `set_device_config` call containing only differing call keys (no
   `Enable`/`Method`/base keys); values match → no write; keys missing →
@@ -176,7 +176,7 @@ without ever blocking setup.
   read, URL generation, or write → warning without URL, no raise; HTTP
   warning not emitted; info log contains masked webhook ID only.
   Covers FR-013 through FR-016, SC-003.
-- [ ] T018 [P] [US3] Add failing setup tests in `tests/test_init.py`:
+- [X] T018 [P] [US3] Add failing setup tests in `tests/test_init.py`:
   webhook enabled + ID → reconciliation scheduled after platform setup
   and writes differing keys (use
   `hass.async_block_till_done(wait_background_tasks=True)`); webhook
@@ -188,14 +188,14 @@ without ever blocking setup.
 
 ### Implementation (Phase 4)
 
-- [ ] T019 [US3] Add `async_reconcile_optional_action_urls()` to
+- [X] T019 [US3] Add `async_reconcile_optional_action_urls()` to
   `custom_components/local_akuvox/webhook.py` per
   `contracts/reconciliation.md`, splitting the diff computation into a
   pure helper if needed for C901. Covers FR-013 through FR-016.
-- [ ] T020 [US3] Add `action_url_reconcile_task: asyncio.Task[None] |
+- [X] T020 [US3] Add `action_url_reconcile_task: asyncio.Task[None] |
   None = None` to `AkuvoxDataUpdateCoordinator` in
   `custom_components/local_akuvox/coordinator.py`. Covers FR-012.
-- [ ] T021 [US3] In `async_setup_entry`
+- [X] T021 [US3] In `async_setup_entry`
   (`custom_components/local_akuvox/__init__.py`), after
   `async_forward_entry_setups()` succeeds and only when webhook is
   enabled with an ID, schedule the task via
@@ -210,23 +210,23 @@ ______________________________________________________________________
 
 ## Phase 5: Polish & Cross-Cutting
 
-- [ ] T022 [P] Update `README.md` "Webhook Events" and
+- [X] T022 [P] Update `README.md` "Webhook Events" and
   `wiki/Webhook-Events.md`: add `call_made`/`call_ended` rows (note
   `call_ended` may also fire for incoming calls), `payload.remote` in the
   payload example/field table, a call automation example, and a note that
   call events are configured only on devices exposing the keys and that
   existing webhook-enabled devices are upgraded automatically at load.
   Covers FR-017.
-- [ ] T023 [P] Add a Reno release note under `releasenotes/notes/`
+- [X] T023 [P] Add a Reno release note under `releasenotes/notes/`
   (`uv run reno new call-webhook-events` or equivalent) with a
   `features` entry describing the events, capability gating, and
   automatic upgrade, and an `upgrade` entry about the one-time call URL
   write on load. Covers FR-018.
-- [ ] T024 Run `uv run pytest tests/ -x -q`,
+- [X] T024 Run `uv run pytest tests/ -x -q`,
   `uv run ruff check custom_components/ tests/`,
   `uv run ruff format --check`, and
   `uv run pre-commit run --all-files`; fix any findings. Covers SC-005.
-- [ ] T025 Mark tasks complete in this file in a separate
+- [X] T025 Mark tasks complete in this file in a separate
   `Docs(tasks): Mark 013 task list complete` commit.
 
 ______________________________________________________________________

@@ -38,6 +38,13 @@ ACTIONURL_KEYS: Final[dict[str, str]] = {
     "InvalidCodeEntered": f"{ACTIONURL_PREFIX}.InvalidCodeEntered",
 }
 
+# Optional Action URL keys — configured only when the device config
+# exposes them (call events are model-dependent)
+OPTIONAL_ACTIONURL_KEYS: Final[dict[str, str]] = {
+    "MakeCall": f"{ACTIONURL_PREFIX}.MakeCall",
+    "HangUp": f"{ACTIONURL_PREFIX}.HangUp",
+}
+
 # Action URL enable/method keys
 ACTIONURL_ENABLE_KEY: Final = f"{ACTIONURL_PREFIX}.Enable"
 ACTIONURL_METHOD_KEY: Final = f"{ACTIONURL_PREFIX}.Method"
@@ -55,6 +62,8 @@ KNOWN_EVENT_TYPES: Final[frozenset[str]] = frozenset(
         "input_b_closed",
         "valid_code_entered",
         "invalid_code_entered",
+        "call_made",
+        "call_ended",
     }
 )
 

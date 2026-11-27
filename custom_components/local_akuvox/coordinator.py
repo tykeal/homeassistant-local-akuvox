@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from dataclasses import dataclass, field
 from datetime import timedelta
@@ -99,6 +100,7 @@ class AkuvoxDataUpdateCoordinator(
         self._cached_users: list[User] = []
         self._last_user_fetch: float | None = None
         self._was_unavailable: bool = False
+        self.action_url_reconcile_task: asyncio.Task[None] | None = None
 
     def get_user_by_pin(self, pin: str) -> User | None:
         """Look up a user by their private PIN from the cache.

@@ -8,6 +8,7 @@ from __future__ import annotations
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
+import pytest
 from homeassistant import config_entries
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
@@ -1644,3 +1645,83 @@ async def test_options_flow_reports_unsupported_webhook_change(
     assert result["type"] is FlowResultType.FORM
     assert result["errors"] == {"base": "webhook_push_failed"}
     assert len(hass.data[DOMAIN]["unsupported_capability_issue_ids"]) == 1
+
+
+# ── Call action URL gating (issue #330) ──────────────────────
+
+_MAKE_CALL_KEY = "Config.Features.ACTIONURL.MakeCall"
+_HANG_UP_KEY = "Config.Features.ACTIONURL.HangUp"
+
+
+@pytest.mark.parametrize(
+    ("config_kind", "expect_call_keys"),
+    [("both", True), ("none", False), ("error", False)],
+)
+async def test_webhook_push_gates_call_keys_on_device_config(
+    hass: HomeAssistant,
+    mock_device_config: Any,
+    mock_device_config_factory: Any,
+    config_kind: str,
+    expect_call_keys: bool,
+) -> None:
+    """Test config flow adds call keys only when the device exposes them."""
+    info = DeviceInfo(
+        model="E21V",
+        mac_address=MOCK_MAC,
+        firmware_version="1.0.0",
+        hardware_version="2.0.0",
+    )
+    with (
+        patch(
+            "custom_components.local_akuvox.config_flow.AkuvoxDevice",
+        ) as mock_cls,
+        patch(
+            "custom_components.local_akuvox.async_setup_entry",
+            return_value=True,
+        ),
+    ):
+        device = mock_cls.return_value
+        device.get_info = AsyncMock(return_value=info)
+        device.set_device_config = AsyncMock(return_value=None)
+        device.__aenter__ = AsyncMock(return_value=device)
+        device.__aexit__ = AsyncMock(return_value=None)
+        if config_kind == "both":
+            device.get_device_config = AsyncMock(
+                return_value=mock_device_config_factory(
+                    **{_MAKE_CALL_KEY: "", _HANG_UP_KEY: ""},
+                ),
+            )
+        elif config_kind == "none":
+            device.get_device_config = AsyncMock(
+                return_value=mock_device_config,
+            )
+        else:
+            device.get_device_config = AsyncMock(
+                side_effect=AkuvoxConnectionError("read failed"),
+            )
+
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={"source": config_entries.SOURCE_USER},
+        )
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"],
+            {CONF_HOST: MOCK_HOST, CONF_USE_SSL: False},
+        )
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"],
+            {CONF_AUTH_METHOD: AUTH_NONE},
+        )
+        result = await _accept_default_capabilities(hass, result)
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"],
+            {CONF_WEBHOOK_ENABLED: True},
+        )
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    payload = device.set_device_config.await_args.args[0]
+    assert payload["Config.Features.ACTIONURL.Enable"] == "1"
+    assert (_MAKE_CALL_KEY in payload) is expect_call_keys
+    assert (_HANG_UP_KEY in payload) is expect_call_keys
+    if expect_call_keys:
+        assert list(payload)[-2:] == [_MAKE_CALL_KEY, _HANG_UP_KEY]

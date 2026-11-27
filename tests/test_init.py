@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
@@ -25,11 +26,13 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.local_akuvox import async_setup_entry
 from custom_components.local_akuvox.const import (
     CONF_PASSWORD,
+    CONF_WEBHOOK_ENABLED,
+    CONF_WEBHOOK_ID,
     CONFIG_KEY_LOCATION,
     DATA_CAPABILITY_REPORT_LOCK,
     DOMAIN,
 )
-from tests.conftest import MOCK_MAC
+from tests.conftest import MOCK_MAC, MOCK_WEBHOOK_BASE, MOCK_WEBHOOK_ID
 
 
 async def test_setup_entry_creates_coordinator(
@@ -798,3 +801,275 @@ async def test_remove_entry_reports_unsupported_push_failure(
         await hass.async_block_till_done()
 
     assert DOMAIN not in hass.data
+
+
+# ── Call action URL reconciliation and gating (issue #330) ───
+
+_MAKE_CALL_KEY = "Config.Features.ACTIONURL.MakeCall"
+_HANG_UP_KEY = "Config.Features.ACTIONURL.HangUp"
+_EXPECTED_BASE = f"{MOCK_WEBHOOK_BASE}/{MOCK_WEBHOOK_ID}"
+_EXPECTED_MAKE_CALL = f"{_EXPECTED_BASE}?event=call_made&remote=$remote"
+_EXPECTED_HANG_UP = f"{_EXPECTED_BASE}?event=call_ended&remote=$remote"
+
+
+def _webhook_entry(hass: HomeAssistant, data: dict[str, Any]) -> MockConfigEntry:
+    """Add a config entry with the given data to hass."""
+    entry = MockConfigEntry(domain=DOMAIN, data=data, unique_id=MOCK_MAC)
+    entry.add_to_hass(hass)
+    return entry
+
+
+async def test_setup_reconciles_differing_call_urls(
+    hass: HomeAssistant,
+    mock_config_entry_data_webhook: dict[str, Any],
+    mock_akuvox_device: AsyncMock,
+    mock_device_config_factory: Any,
+) -> None:
+    """Test setup writes only the stale call action URL in the background."""
+    mock_akuvox_device.get_device_config = AsyncMock(
+        return_value=mock_device_config_factory(
+            **{_MAKE_CALL_KEY: "", _HANG_UP_KEY: _EXPECTED_HANG_UP},
+        ),
+    )
+    mock_akuvox_device.set_device_config = AsyncMock(return_value=None)
+    entry = _webhook_entry(hass, mock_config_entry_data_webhook)
+
+    await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done(wait_background_tasks=True)
+
+    assert entry.state is ConfigEntryState.LOADED
+    mock_akuvox_device.set_device_config.assert_awaited_once_with(
+        {_MAKE_CALL_KEY: _EXPECTED_MAKE_CALL},
+    )
+
+
+async def test_setup_skips_write_when_call_urls_current(
+    hass: HomeAssistant,
+    mock_config_entry_data_webhook: dict[str, Any],
+    mock_akuvox_device: AsyncMock,
+    mock_device_config_factory: Any,
+) -> None:
+    """Test setup does not rewrite call action URLs that already match."""
+    mock_akuvox_device.get_device_config = AsyncMock(
+        return_value=mock_device_config_factory(
+            **{
+                _MAKE_CALL_KEY: _EXPECTED_MAKE_CALL,
+                _HANG_UP_KEY: _EXPECTED_HANG_UP,
+            },
+        ),
+    )
+    mock_akuvox_device.set_device_config = AsyncMock(return_value=None)
+    entry = _webhook_entry(hass, mock_config_entry_data_webhook)
+
+    await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done(wait_background_tasks=True)
+
+    mock_akuvox_device.set_device_config.assert_not_awaited()
+
+
+@pytest.mark.parametrize(
+    ("enabled", "webhook_id"),
+    [(False, MOCK_WEBHOOK_ID), (True, None)],
+)
+async def test_setup_skips_reconcile_without_active_webhook(
+    hass: HomeAssistant,
+    mock_config_entry_data_webhook: dict[str, Any],
+    mock_akuvox_device: AsyncMock,
+    enabled: bool,
+    webhook_id: str | None,
+) -> None:
+    """Test no reconciliation runs when webhooks are inactive."""
+    entry = _webhook_entry(
+        hass,
+        {
+            **mock_config_entry_data_webhook,
+            CONF_WEBHOOK_ENABLED: enabled,
+            CONF_WEBHOOK_ID: webhook_id,
+        },
+    )
+
+    with patch(
+        "custom_components.local_akuvox.schedule_reconcile_task",
+    ) as mock_reconcile:
+        await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done(wait_background_tasks=True)
+
+    assert entry.state is ConfigEntryState.LOADED
+    mock_reconcile.assert_not_called()
+    assert hass.data[DOMAIN][entry.entry_id].action_url_reconcile_task is None
+
+
+async def test_setup_survives_reconcile_failure(
+    hass: HomeAssistant,
+    mock_config_entry_data_webhook: dict[str, Any],
+    mock_akuvox_device: AsyncMock,
+    mock_device_config_factory: Any,
+) -> None:
+    """Test a failing call URL write never fails entry setup."""
+    mock_akuvox_device.get_device_config = AsyncMock(
+        return_value=mock_device_config_factory(**{_MAKE_CALL_KEY: ""}),
+    )
+    mock_akuvox_device.set_device_config = AsyncMock(
+        side_effect=AkuvoxConnectionError("offline"),
+    )
+    entry = _webhook_entry(hass, mock_config_entry_data_webhook)
+
+    await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done(wait_background_tasks=True)
+
+    assert entry.state is ConfigEntryState.LOADED
+    mock_akuvox_device.set_device_config.assert_awaited_once()
+
+
+async def test_setup_forward_failure_skips_reconcile(
+    hass: HomeAssistant,
+    mock_config_entry_data_webhook: dict[str, Any],
+    mock_akuvox_device: AsyncMock,
+) -> None:
+    """Test reconciliation is not scheduled when platform setup fails."""
+    entry = _webhook_entry(hass, mock_config_entry_data_webhook)
+
+    with (
+        patch.object(
+            hass.config_entries,
+            "async_forward_entry_setups",
+            side_effect=RuntimeError("platform failed"),
+        ),
+        patch(
+            "custom_components.local_akuvox.schedule_reconcile_task",
+        ) as mock_reconcile,
+    ):
+        await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done(wait_background_tasks=True)
+
+    assert entry.state is ConfigEntryState.SETUP_ERROR
+    mock_reconcile.assert_not_called()
+
+
+async def test_unload_cancels_reconcile_before_closing_device(
+    hass: HomeAssistant,
+    mock_config_entry_data_webhook: dict[str, Any],
+    mock_akuvox_device: AsyncMock,
+    mock_device_config_factory: Any,
+) -> None:
+    """Test unload cancels in-flight reconciliation before closing."""
+    started = asyncio.Event()
+    never = asyncio.Event()
+
+    async def _blocking_set(_payload: dict[str, str]) -> None:
+        """Block the reconciliation write until cancelled."""
+        started.set()
+        await never.wait()
+
+    mock_akuvox_device.get_device_config = AsyncMock(
+        return_value=mock_device_config_factory(**{_MAKE_CALL_KEY: ""}),
+    )
+    mock_akuvox_device.set_device_config = AsyncMock(side_effect=_blocking_set)
+    entry = _webhook_entry(hass, mock_config_entry_data_webhook)
+
+    await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    await asyncio.wait_for(started.wait(), timeout=1)
+    task = hass.data[DOMAIN][entry.entry_id].action_url_reconcile_task
+    observed: dict[str, bool] = {}
+
+    async def _exit(*_args: Any) -> None:
+        """Record whether reconciliation finished before closing."""
+        observed["done"] = task.done()
+
+    mock_akuvox_device.__aexit__ = AsyncMock(side_effect=_exit)
+
+    assert await hass.config_entries.async_unload(entry.entry_id)
+
+    assert observed == {"done": True}
+    assert task.cancelled()
+
+
+async def _setup_and_remove(
+    hass: HomeAssistant,
+    entry_data: dict[str, Any],
+    mock_relay_status: dict[str, Any],
+    mock_device_info: Any,
+    mock_device_config: Any,
+    remove_config: Any,
+) -> AsyncMock:
+    """Set up then remove an entry, returning the removal device mock."""
+    entry = _webhook_entry(hass, entry_data)
+    with patch(
+        "custom_components.local_akuvox.AkuvoxDevice",
+        autospec=True,
+    ) as mock_cls:
+        device = mock_cls.return_value
+        device.__aenter__ = AsyncMock(return_value=device)
+        device.__aexit__ = AsyncMock(return_value=None)
+        device.get_relay_status = AsyncMock(return_value=mock_relay_status)
+        device.get_info = AsyncMock(return_value=mock_device_info)
+        device.get_device_config = AsyncMock(return_value=mock_device_config)
+        device.set_device_config = AsyncMock(return_value=None)
+        await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done(wait_background_tasks=True)
+
+    with patch(
+        "custom_components.local_akuvox.AkuvoxDevice",
+        autospec=True,
+    ) as mock_remove_cls:
+        remove_dev = mock_remove_cls.return_value
+        remove_dev.__aenter__ = AsyncMock(return_value=remove_dev)
+        remove_dev.__aexit__ = AsyncMock(return_value=None)
+        if isinstance(remove_config, Exception):
+            remove_dev.get_device_config = AsyncMock(side_effect=remove_config)
+        else:
+            remove_dev.get_device_config = AsyncMock(return_value=remove_config)
+        remove_dev.set_device_config = AsyncMock(return_value=None)
+        await hass.config_entries.async_remove(entry.entry_id)
+        await hass.async_block_till_done()
+    result: AsyncMock = remove_dev
+    return result
+
+
+async def test_remove_entry_blanks_exposed_call_keys(
+    hass: HomeAssistant,
+    mock_config_entry_data_webhook: dict[str, Any],
+    mock_relay_status: dict[str, Any],
+    mock_device_info: Any,
+    mock_device_config: Any,
+    mock_device_config_factory: Any,
+) -> None:
+    """Test removal blanks call keys only when the device exposes them."""
+    remove_dev = await _setup_and_remove(
+        hass,
+        mock_config_entry_data_webhook,
+        mock_relay_status,
+        mock_device_info,
+        mock_device_config,
+        mock_device_config_factory(**{_HANG_UP_KEY: _EXPECTED_HANG_UP}),
+    )
+
+    payload = remove_dev.set_device_config.await_args.args[0]
+    assert payload[_HANG_UP_KEY] == ""
+    assert _MAKE_CALL_KEY not in payload
+
+
+@pytest.mark.parametrize("use_error", [False, True])
+async def test_remove_entry_base_payload_without_call_keys(
+    hass: HomeAssistant,
+    mock_config_entry_data_webhook: dict[str, Any],
+    mock_relay_status: dict[str, Any],
+    mock_device_info: Any,
+    mock_device_config: Any,
+    use_error: bool,
+) -> None:
+    """Test removal pushes the base disable payload when keys are absent."""
+    remove_dev = await _setup_and_remove(
+        hass,
+        mock_config_entry_data_webhook,
+        mock_relay_status,
+        mock_device_info,
+        mock_device_config,
+        RuntimeError("read failed") if use_error else mock_device_config,
+    )
+
+    payload = remove_dev.set_device_config.await_args.args[0]
+    assert _MAKE_CALL_KEY not in payload
+    assert _HANG_UP_KEY not in payload
+    assert payload["Config.Features.ACTIONURL.Enable"] == "0"
