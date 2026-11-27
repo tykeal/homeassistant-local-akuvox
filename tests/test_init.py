@@ -889,7 +889,7 @@ async def test_setup_skips_reconcile_without_active_webhook(
     )
 
     with patch(
-        "custom_components.local_akuvox.async_reconcile_optional_action_urls",
+        "custom_components.local_akuvox.schedule_reconcile_task",
     ) as mock_reconcile:
         await hass.config_entries.async_setup(entry.entry_id)
         await hass.async_block_till_done(wait_background_tasks=True)
@@ -936,7 +936,7 @@ async def test_setup_forward_failure_skips_reconcile(
             side_effect=RuntimeError("platform failed"),
         ),
         patch(
-            "custom_components.local_akuvox.async_reconcile_optional_action_urls",
+            "custom_components.local_akuvox.schedule_reconcile_task",
         ) as mock_reconcile,
     ):
         await hass.config_entries.async_setup(entry.entry_id)

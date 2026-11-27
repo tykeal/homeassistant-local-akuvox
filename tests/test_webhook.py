@@ -1191,10 +1191,11 @@ async def test_reconcile_reports_unsupported(
     hass: HomeAssistant,
     fail_on: str,
 ) -> None:
-    """Test unsupported reads or writes are reported, not raised."""
+    """Test unsupported errors are reported without the device message."""
     err = AkuvoxUnsupportedError(
-        "nope",
+        f"rejected http://ha.local/api/webhook/{MOCK_WEBHOOK_ID}",
         capability=Capability.DEVICE_CONFIG_SET,
+        device_class="E21V",
         reason="capability_missing",
     )
     device = _reconcile_device(DeviceConfig(data={_MAKE_CALL_KEY: ""}))
@@ -1213,7 +1214,12 @@ async def test_reconcile_reports_unsupported(
     report_args = mock_report.await_args
     assert report_args is not None
     assert report_args.args[1] is entry
-    assert report_args.args[2] is err
+    reported = report_args.args[2]
+    assert isinstance(reported, AkuvoxUnsupportedError)
+    assert MOCK_WEBHOOK_ID not in str(reported)
+    assert reported.capability is Capability.DEVICE_CONFIG_SET
+    assert reported.device_class == "E21V"
+    assert reported.reason == "capability_missing"
 
 
 @pytest.mark.parametrize("fail_on", ["read", "url", "write"])

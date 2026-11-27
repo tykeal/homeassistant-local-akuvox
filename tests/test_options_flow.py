@@ -299,13 +299,15 @@ async def test_options_webhook_enable_base_payload_without_call_keys(
     assert payload["Config.Features.ACTIONURL.Enable"] == "1"
 
 
+@pytest.mark.parametrize("push_fails", [False, True])
 async def test_options_webhook_change_cancels_reconcile_first(
     hass: HomeAssistant,
     mock_config_entry_data_webhook: dict[str, Any],
     mock_akuvox_device: AsyncMock,
     mock_device_config_factory: Any,
+    push_fails: bool,
 ) -> None:
-    """Test a webhook change cancels in-flight reconciliation before pushing."""
+    """Test webhook changes cancel reconciliation, restarting it on failure."""
     started = asyncio.Event()
     never = asyncio.Event()
 
@@ -333,6 +335,8 @@ async def test_options_webhook_change_cancels_reconcile_first(
     async def _record_push(_payload: dict[str, str]) -> None:
         """Record whether reconciliation finished before the push."""
         observed["done"] = task.done()
+        if push_fails:
+            raise RuntimeError("device offline")
 
     mock_akuvox_device.set_device_config = AsyncMock(return_value=None)
     with patch(
@@ -357,8 +361,15 @@ async def test_options_webhook_change_cancels_reconcile_first(
                 CONF_WEBHOOK_ENABLED: False,
             },
         )
-        await hass.async_block_till_done()
+        await hass.async_block_till_done(wait_background_tasks=True)
 
-    assert result["type"] is FlowResultType.CREATE_ENTRY
     assert observed == {"done": True}
     assert task.cancelled()
+    if not push_fails:
+        assert result["type"] is FlowResultType.CREATE_ENTRY
+        return
+    assert result["errors"] == {"base": "webhook_push_failed"}
+    restarted = hass.data[DOMAIN][entry.entry_id].action_url_reconcile_task
+    assert restarted is not task
+    assert restarted.done()
+    mock_akuvox_device.set_device_config.assert_awaited_once()

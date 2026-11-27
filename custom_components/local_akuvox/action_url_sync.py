@@ -149,10 +149,18 @@ async def async_reconcile_optional_action_urls(
             return
         await device.set_device_config(updates)
     except AkuvoxUnsupportedError as err:
+        # Device messages may echo the submitted URL; keep only the
+        # structured fields so the webhook ID is never logged
+        safe_err = AkuvoxUnsupportedError(
+            "Call action URL reconciliation is unsupported",
+            capability=err.capability,
+            device_class=err.device_class,
+            reason=err.reason,
+        )
         await async_report_unsupported_capability(
             hass,
             entry,
-            err,
+            safe_err,
             context="webhook call action URL reconciliation",
         )
         return
@@ -172,7 +180,34 @@ async def async_reconcile_optional_action_urls(
     )
 
 
-async def async_cancel_reconcile_task(coordinator: Any) -> None:
+def schedule_reconcile_task(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    coordinator: Any,
+    webhook_id: str,
+) -> None:
+    """Start call action URL reconciliation as an entry background task.
+
+    Args:
+        hass: The Home Assistant instance.
+        entry: The loaded config entry.
+        coordinator: The entry's coordinator owning the device session.
+        webhook_id: The registered webhook ID.
+
+    """
+    coordinator.action_url_reconcile_task = entry.async_create_background_task(
+        hass,
+        async_reconcile_optional_action_urls(
+            hass,
+            entry,
+            coordinator.device,
+            webhook_id,
+        ),
+        name=f"local_akuvox_reconcile_action_urls_{entry.entry_id}",
+    )
+
+
+async def async_cancel_reconcile_task(coordinator: Any) -> bool:
     """Cancel and await in-flight call action URL reconciliation.
 
     Must run before the device session closes or another Action URL
@@ -182,8 +217,13 @@ async def async_cancel_reconcile_task(coordinator: Any) -> None:
     Args:
         coordinator: The coordinator owning the reconcile task, if any.
 
+    Returns:
+        True if an in-flight task was cancelled.
+
     """
     task = getattr(coordinator, "action_url_reconcile_task", None)
-    if isinstance(task, asyncio.Task) and not task.done():
-        task.cancel()
-        await asyncio.wait({task})
+    if not isinstance(task, asyncio.Task) or task.done():
+        return False
+    task.cancel()
+    await asyncio.wait({task})
+    return True

@@ -24,7 +24,7 @@ from pylocal_akuvox import (
 from .action_url_sync import (
     async_cancel_reconcile_task,
     async_detect_optional_action_url_keys,
-    async_reconcile_optional_action_urls,
+    schedule_reconcile_task,
 )
 from .capability_support import (
     apply_capability_options,
@@ -219,16 +219,7 @@ async def async_setup_entry(
         raise
 
     if webhook_enabled and webhook_id is not None:
-        coordinator.action_url_reconcile_task = entry.async_create_background_task(
-            hass,
-            async_reconcile_optional_action_urls(
-                hass,
-                entry,
-                device,
-                str(webhook_id),
-            ),
-            name=f"local_akuvox_reconcile_action_urls_{entry.entry_id}",
-        )
+        schedule_reconcile_task(hass, entry, coordinator, str(webhook_id))
 
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
 
