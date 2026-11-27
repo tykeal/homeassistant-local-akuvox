@@ -1,0 +1,20 @@
+---
+# SPDX-FileCopyrightText: 2026 Andrew Grimberg <tykeal@bardicgrove.org>
+# SPDX-License-Identifier: Apache-2.0
+
+features:
+  - |
+    Webhook events now include `call_made` (the device placed an outgoing
+    call) and `call_ended` (the device hung up a call). Both carry the
+    other party's SIP or IP number in `payload.remote`. The call Action
+    URLs are only configured on devices whose configuration exposes the
+    `MakeCall` and `HangUp` keys; other devices keep exactly the existing
+    relay, input and code webhook setup.
+upgrade:
+  - |
+    On devices that already have webhooks enabled and expose the call
+    Action URL keys, Home Assistant writes the missing call URLs to the
+    device automatically the next time the integration loads. Only call
+    URLs that differ are written, so devices that are already up to date
+    are not rewritten, and a failed write never stops the integration
+    from loading.
