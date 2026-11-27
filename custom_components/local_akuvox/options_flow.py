@@ -18,7 +18,10 @@ from pylocal_akuvox import (
     AuthMethod,
 )
 
-from .action_url_sync import async_detect_optional_action_url_keys
+from .action_url_sync import (
+    async_cancel_reconcile_task,
+    async_detect_optional_action_url_keys,
+)
 from .capability_support import (
     apply_capability_options,
     async_report_unsupported_capability,
@@ -40,6 +43,7 @@ from .const import (
     CONF_WEBHOOK_ID,
     DEFAULT_ATTEMPT_UNKNOWN_CAPABILITY,
     DEFAULT_REQUEST_DELAY,
+    DOMAIN,
     get_auth_method_map,
 )
 from .webhook import build_action_urls
@@ -162,6 +166,14 @@ class AkuvoxOptionsFlow(OptionsFlow):
 
         if webhook_id is None:
             return None
+
+        # A load-time reconcile could otherwise rewrite call URLs after
+        # this push (e.g. restoring them right after a disable)
+        entry_data = self.hass.data.get(DOMAIN)
+        if entry_data is not None:
+            await async_cancel_reconcile_task(
+                entry_data.get(self._config_entry.entry_id),
+            )
 
         # Use merged settings for device connection
         effective = {**current, **user_input}

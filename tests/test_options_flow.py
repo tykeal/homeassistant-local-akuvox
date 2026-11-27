@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
@@ -296,3 +297,68 @@ async def test_options_webhook_enable_base_payload_without_call_keys(
     assert _MAKE_CALL_KEY not in payload
     assert _HANG_UP_KEY not in payload
     assert payload["Config.Features.ACTIONURL.Enable"] == "1"
+
+
+async def test_options_webhook_change_cancels_reconcile_first(
+    hass: HomeAssistant,
+    mock_config_entry_data_webhook: dict[str, Any],
+    mock_akuvox_device: AsyncMock,
+    mock_device_config_factory: Any,
+) -> None:
+    """Test a webhook change cancels in-flight reconciliation before pushing."""
+    started = asyncio.Event()
+    never = asyncio.Event()
+
+    async def _blocking_set(_payload: dict[str, str]) -> None:
+        """Block the reconciliation write until cancelled."""
+        started.set()
+        await never.wait()
+
+    mock_akuvox_device.get_device_config = AsyncMock(
+        return_value=mock_device_config_factory(**{_MAKE_CALL_KEY: ""}),
+    )
+    mock_akuvox_device.set_device_config = AsyncMock(side_effect=_blocking_set)
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data=mock_config_entry_data_webhook,
+        unique_id=MOCK_MAC,
+    )
+    entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    await asyncio.wait_for(started.wait(), timeout=1)
+    task = hass.data[DOMAIN][entry.entry_id].action_url_reconcile_task
+    observed: dict[str, bool] = {}
+
+    async def _record_push(_payload: dict[str, str]) -> None:
+        """Record whether reconciliation finished before the push."""
+        observed["done"] = task.done()
+
+    mock_akuvox_device.set_device_config = AsyncMock(return_value=None)
+    with patch(
+        "custom_components.local_akuvox.options_flow.AkuvoxDevice",
+    ) as mock_cls:
+        device = mock_cls.return_value
+        device.__aenter__ = AsyncMock(return_value=device)
+        device.__aexit__ = AsyncMock(return_value=None)
+        device.get_device_config = AsyncMock(return_value={})
+        device.set_device_config = AsyncMock(side_effect=_record_push)
+
+        result = await hass.config_entries.options.async_init(entry.entry_id)
+        result = await hass.config_entries.options.async_configure(
+            result["flow_id"],
+            user_input={
+                CONF_HOST: MOCK_HOST,
+                CONF_USE_SSL: False,
+                CONF_VERIFY_SSL: True,
+                CONF_AUTH_METHOD: AUTH_NONE,
+                CONF_USERNAME: "",
+                CONF_PASSWORD: "",
+                CONF_WEBHOOK_ENABLED: False,
+            },
+        )
+        await hass.async_block_till_done()
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert observed == {"done": True}
+    assert task.cancelled()

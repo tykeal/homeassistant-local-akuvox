@@ -5,7 +5,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import logging
 
 from homeassistant.config_entries import ConfigEntry
@@ -23,6 +22,7 @@ from pylocal_akuvox import (
 )
 
 from .action_url_sync import (
+    async_cancel_reconcile_task,
     async_detect_optional_action_url_keys,
     async_reconcile_optional_action_urls,
 )
@@ -270,31 +270,13 @@ async def async_unload_entry(
         async_unregister_webhook(hass, entry)
 
         coordinator: AkuvoxDataUpdateCoordinator = hass.data[DOMAIN].pop(entry.entry_id)
-        await _async_cancel_reconcile_task(coordinator)
+        await async_cancel_reconcile_task(coordinator)
         await coordinator.device.__aexit__(None, None, None)
         _LOGGER.debug("Closed device session for %s", entry.title)
 
         _cleanup_domain_runtime_data(hass)
 
     return unload_ok
-
-
-async def _async_cancel_reconcile_task(
-    coordinator: AkuvoxDataUpdateCoordinator,
-) -> None:
-    """Cancel and await in-flight call action URL reconciliation.
-
-    Must run before the device session closes, because Home Assistant
-    only cancels entry background tasks after unload returns.
-
-    Args:
-        coordinator: The coordinator owning the reconcile task.
-
-    """
-    task = getattr(coordinator, "action_url_reconcile_task", None)
-    if isinstance(task, asyncio.Task) and not task.done():
-        task.cancel()
-        await asyncio.wait({task})
 
 
 async def async_remove_entry(

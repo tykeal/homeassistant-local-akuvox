@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from collections.abc import Collection
 from typing import Any
@@ -162,7 +163,6 @@ async def async_reconcile_optional_action_urls(
             masked_id,
             type(err).__name__,
         )
-        _LOGGER.debug("Call action URL reconcile error", exc_info=True)
         return
     _LOGGER.info(
         "Updated %d call action URL(s) for %s (webhook %s)",
@@ -170,3 +170,20 @@ async def async_reconcile_optional_action_urls(
         entry.title,
         masked_id,
     )
+
+
+async def async_cancel_reconcile_task(coordinator: Any) -> None:
+    """Cancel and await in-flight call action URL reconciliation.
+
+    Must run before the device session closes or another Action URL
+    write is pushed, because Home Assistant only cancels entry
+    background tasks after unload returns.
+
+    Args:
+        coordinator: The coordinator owning the reconcile task, if any.
+
+    """
+    task = getattr(coordinator, "action_url_reconcile_task", None)
+    if isinstance(task, asyncio.Task) and not task.done():
+        task.cancel()
+        await asyncio.wait({task})
