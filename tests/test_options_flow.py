@@ -299,15 +299,15 @@ async def test_options_webhook_enable_base_payload_without_call_keys(
     assert payload["Config.Features.ACTIONURL.Enable"] == "1"
 
 
-@pytest.mark.parametrize("push_fails", [False, True])
+@pytest.mark.parametrize("push", ["succeeds", "fails", "fails_after_unload"])
 async def test_options_webhook_change_cancels_reconcile_first(
     hass: HomeAssistant,
     mock_config_entry_data_webhook: dict[str, Any],
     mock_akuvox_device: AsyncMock,
     mock_device_config_factory: Any,
-    push_fails: bool,
+    push: str,
 ) -> None:
-    """Test webhook changes cancel reconciliation, restarting it on failure."""
+    """Test webhook changes cancel reconciliation, resuming it if still loaded."""
     started = asyncio.Event()
     never = asyncio.Event()
 
@@ -329,13 +329,16 @@ async def test_options_webhook_change_cancels_reconcile_first(
     await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
     await asyncio.wait_for(started.wait(), timeout=1)
-    task = hass.data[DOMAIN][entry.entry_id].action_url_reconcile_task
+    coordinator = hass.data[DOMAIN][entry.entry_id]
+    task = coordinator.action_url_reconcile_task
     observed: dict[str, bool] = {}
 
     async def _record_push(_payload: dict[str, str]) -> None:
         """Record whether reconciliation finished before the push."""
         observed["done"] = task.done()
-        if push_fails:
+        if push == "fails_after_unload":
+            assert await hass.config_entries.async_unload(entry.entry_id)
+        if push != "succeeds":
             raise RuntimeError("device offline")
 
     mock_akuvox_device.set_device_config = AsyncMock(return_value=None)
@@ -365,11 +368,15 @@ async def test_options_webhook_change_cancels_reconcile_first(
 
     assert observed == {"done": True}
     assert task.cancelled()
-    if not push_fails:
+    if push == "succeeds":
         assert result["type"] is FlowResultType.CREATE_ENTRY
         return
     assert result["errors"] == {"base": "webhook_push_failed"}
-    restarted = hass.data[DOMAIN][entry.entry_id].action_url_reconcile_task
+    if push == "fails_after_unload":
+        assert coordinator.action_url_reconcile_task is task
+        mock_akuvox_device.set_device_config.assert_not_awaited()
+        return
+    restarted = coordinator.action_url_reconcile_task
     assert restarted is not task
     assert restarted.done()
     mock_akuvox_device.set_device_config.assert_awaited_once()

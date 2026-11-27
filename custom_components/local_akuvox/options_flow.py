@@ -179,7 +179,7 @@ class AkuvoxOptionsFlow(OptionsFlow):
             enable=bool(now_enabled),
         )
         if error is not None:
-            if cancelled:
+            if cancelled and self._can_resume_reconcile(coordinator):
                 # The failed push saved nothing and no reload will follow
                 schedule_reconcile_task(
                     self.hass,
@@ -204,6 +204,24 @@ class AkuvoxOptionsFlow(OptionsFlow):
         if entry_data is None:
             return None
         return entry_data.get(self._config_entry.entry_id)
+
+    def _can_resume_reconcile(self, coordinator: Any) -> bool:
+        """Return whether a cancelled reconcile may be restarted.
+
+        The entry must still be loaded with the same coordinator (its
+        device session open) and webhooks must still be enabled.
+
+        Args:
+            coordinator: The coordinator whose reconcile was cancelled.
+
+        Returns:
+            True if reconciliation can safely be restarted.
+
+        """
+        saved = {**self._config_entry.data, **self._config_entry.options}
+        return self._loaded_coordinator() is coordinator and bool(
+            saved.get(CONF_WEBHOOK_ENABLED, False),
+        )
 
     async def _async_push_webhook_payload(
         self,
