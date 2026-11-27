@@ -8,6 +8,7 @@ from __future__ import annotations
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
+import pytest
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 from pytest_homeassistant_custom_component.common import MockConfigEntry
@@ -76,10 +77,20 @@ async def test_options_webhook_url_build_failure_shows_error(
     )
     entry.add_to_hass(hass)
 
-    with patch(
-        "custom_components.local_akuvox.options_flow.build_action_urls",
-        side_effect=RuntimeError("no url"),
+    with (
+        patch(
+            "custom_components.local_akuvox.options_flow.build_action_urls",
+            side_effect=RuntimeError("no url"),
+        ),
+        patch(
+            "custom_components.local_akuvox.options_flow.AkuvoxDevice",
+        ) as mock_cls,
     ):
+        device = mock_cls.return_value
+        device.__aenter__ = AsyncMock(return_value=device)
+        device.__aexit__ = AsyncMock(return_value=None)
+        device.get_device_config = AsyncMock(return_value={})
+        device.set_device_config = AsyncMock(return_value=None)
         result = await hass.config_entries.options.async_init(entry.entry_id)
         result = await hass.config_entries.options.async_configure(
             result["flow_id"],
@@ -96,6 +107,7 @@ async def test_options_webhook_url_build_failure_shows_error(
 
     assert result["type"] is FlowResultType.FORM
     assert result["errors"] == {"base": "webhook_push_failed"}
+    device.set_device_config.assert_not_awaited()
 
 
 async def test_options_webhook_enable_uses_basic_auth(
@@ -183,3 +195,104 @@ async def test_options_flow_prefills_and_saves_attempt_unknown(
 
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert entry.options[CONF_ATTEMPT_UNKNOWN_CAPABILITY] is False
+
+
+# ── Call action URL gating (issue #330) ──────────────────────
+
+_MAKE_CALL_KEY = "Config.Features.ACTIONURL.MakeCall"
+_HANG_UP_KEY = "Config.Features.ACTIONURL.HangUp"
+
+
+async def _options_toggle_webhook(
+    hass: HomeAssistant,
+    entry_data: dict[str, Any],
+    *,
+    enable: bool,
+    device_config: Any,
+) -> dict[str, str]:
+    """Toggle webhooks via options and return the pushed payload."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={
+            **entry_data,
+            CONF_WEBHOOK_ENABLED: not enable,
+            CONF_WEBHOOK_ID: MOCK_WEBHOOK_ID,
+        },
+        unique_id=MOCK_MAC,
+    )
+    entry.add_to_hass(hass)
+
+    with patch(
+        "custom_components.local_akuvox.options_flow.AkuvoxDevice",
+    ) as mock_cls:
+        device = mock_cls.return_value
+        device.__aenter__ = AsyncMock(return_value=device)
+        device.__aexit__ = AsyncMock(return_value=None)
+        if isinstance(device_config, Exception):
+            device.get_device_config = AsyncMock(side_effect=device_config)
+        else:
+            device.get_device_config = AsyncMock(return_value=device_config)
+        device.set_device_config = AsyncMock(return_value=None)
+
+        result = await hass.config_entries.options.async_init(entry.entry_id)
+        result = await hass.config_entries.options.async_configure(
+            result["flow_id"],
+            user_input={
+                CONF_HOST: MOCK_HOST,
+                CONF_USE_SSL: False,
+                CONF_VERIFY_SSL: True,
+                CONF_AUTH_METHOD: AUTH_NONE,
+                CONF_USERNAME: "",
+                CONF_PASSWORD: "",
+                CONF_WEBHOOK_ENABLED: enable,
+            },
+        )
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    device.set_device_config.assert_awaited_once()
+    payload: dict[str, str] = device.set_device_config.await_args.args[0]
+    return payload
+
+
+@pytest.mark.parametrize("enable", [True, False])
+async def test_options_webhook_change_includes_exposed_call_keys(
+    hass: HomeAssistant,
+    mock_config_entry_data_none: dict[str, Any],
+    mock_device_config_factory: Any,
+    enable: bool,
+) -> None:
+    """Test options pushes call keys only when the device exposes them."""
+    payload = await _options_toggle_webhook(
+        hass,
+        mock_config_entry_data_none,
+        enable=enable,
+        device_config=mock_device_config_factory(**{_MAKE_CALL_KEY: ""}),
+    )
+
+    assert _HANG_UP_KEY not in payload
+    if enable:
+        assert payload[_MAKE_CALL_KEY].endswith(
+            "?event=call_made&remote=$remote",
+        )
+    else:
+        assert payload[_MAKE_CALL_KEY] == ""
+
+
+@pytest.mark.parametrize("use_error", [False, True])
+async def test_options_webhook_enable_base_payload_without_call_keys(
+    hass: HomeAssistant,
+    mock_config_entry_data_none: dict[str, Any],
+    mock_device_config: Any,
+    use_error: bool,
+) -> None:
+    """Test options falls back to the base payload without call keys."""
+    payload = await _options_toggle_webhook(
+        hass,
+        mock_config_entry_data_none,
+        enable=True,
+        device_config=RuntimeError("read failed") if use_error else mock_device_config,
+    )
+
+    assert _MAKE_CALL_KEY not in payload
+    assert _HANG_UP_KEY not in payload
+    assert payload["Config.Features.ACTIONURL.Enable"] == "1"

@@ -18,6 +18,7 @@ from pylocal_akuvox import (
     AuthMethod,
 )
 
+from .action_url_sync import async_detect_optional_action_url_keys
 from .capability_support import (
     apply_capability_options,
     async_report_unsupported_capability,
@@ -162,17 +163,6 @@ class AkuvoxOptionsFlow(OptionsFlow):
         if webhook_id is None:
             return None
 
-        try:
-            enable_payload, disable_payload = build_action_urls(
-                self.hass,
-                str(webhook_id),
-                warn_http=now_enabled,
-            )
-        except Exception:
-            return "webhook_push_failed"
-
-        payload = enable_payload if now_enabled else disable_payload
-
         # Use merged settings for device connection
         effective = {**current, **user_input}
         auth_method_str = effective.get(
@@ -216,6 +206,14 @@ class AkuvoxOptionsFlow(OptionsFlow):
                     device,
                     attempt_unknown=get_mapping_attempt_unknown(effective),
                 )
+                optional_keys = await async_detect_optional_action_url_keys(device)
+                enable_payload, disable_payload = build_action_urls(
+                    self.hass,
+                    str(webhook_id),
+                    warn_http=now_enabled,
+                    optional_keys=optional_keys,
+                )
+                payload = enable_payload if now_enabled else disable_payload
                 await device.set_device_config(payload)  # type: ignore[attr-defined]
         except AkuvoxUnsupportedError as err:
             await async_report_unsupported_capability(

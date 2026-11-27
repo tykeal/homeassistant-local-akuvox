@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 
 from homeassistant.config_entries import ConfigEntry
@@ -21,6 +22,10 @@ from pylocal_akuvox import (
     AuthMethod,
 )
 
+from .action_url_sync import (
+    async_detect_optional_action_url_keys,
+    async_reconcile_optional_action_urls,
+)
 from .capability_support import (
     apply_capability_options,
     async_clear_unsupported_capability_issue,
@@ -213,6 +218,18 @@ async def async_setup_entry(
         await device.__aexit__(None, None, None)
         raise
 
+    if webhook_enabled and webhook_id is not None:
+        coordinator.action_url_reconcile_task = entry.async_create_background_task(
+            hass,
+            async_reconcile_optional_action_urls(
+                hass,
+                entry,
+                device,
+                str(webhook_id),
+            ),
+            name=f"local_akuvox_reconcile_action_urls_{entry.entry_id}",
+        )
+
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
 
     return True
@@ -253,12 +270,31 @@ async def async_unload_entry(
         async_unregister_webhook(hass, entry)
 
         coordinator: AkuvoxDataUpdateCoordinator = hass.data[DOMAIN].pop(entry.entry_id)
+        await _async_cancel_reconcile_task(coordinator)
         await coordinator.device.__aexit__(None, None, None)
         _LOGGER.debug("Closed device session for %s", entry.title)
 
         _cleanup_domain_runtime_data(hass)
 
     return unload_ok
+
+
+async def _async_cancel_reconcile_task(
+    coordinator: AkuvoxDataUpdateCoordinator,
+) -> None:
+    """Cancel and await in-flight call action URL reconciliation.
+
+    Must run before the device session closes, because Home Assistant
+    only cancels entry background tasks after unload returns.
+
+    Args:
+        coordinator: The coordinator owning the reconcile task.
+
+    """
+    task = getattr(coordinator, "action_url_reconcile_task", None)
+    if isinstance(task, asyncio.Task) and not task.done():
+        task.cancel()
+        await asyncio.wait({task})
 
 
 async def async_remove_entry(
@@ -284,16 +320,18 @@ async def async_remove_entry(
         return
 
     try:
-        _, disable_payload = build_action_urls(
-            hass,
-            str(webhook_id),
-            warn_http=False,
-        )
         device = _create_device(entry)
         async with device:
             apply_capability_options(
                 device,
                 attempt_unknown=get_effective_attempt_unknown(entry),
+            )
+            optional_keys = await async_detect_optional_action_url_keys(device)
+            _, disable_payload = build_action_urls(
+                hass,
+                str(webhook_id),
+                warn_http=False,
+                optional_keys=optional_keys,
             )
             await device.set_device_config(disable_payload)  # type: ignore[attr-defined]
     except AkuvoxUnsupportedError as err:

@@ -3,10 +3,13 @@
 
 """Webhook handler and registration helpers for Akuvox."""
 
+# aislop-ignore-file complexity/file-too-large -- handler and URL helpers stay together
+
 from __future__ import annotations
 
 import logging
 import re
+from collections.abc import Collection
 from typing import TYPE_CHECKING, Final
 
 # aislop-ignore-next-line ai-slop/hallucinated-import -- provided by homeassistant
@@ -30,6 +33,7 @@ from .const import (
     DOMAIN,
     EVENT_WEBHOOK_RECEIVED,
     KNOWN_EVENT_TYPES,
+    OPTIONAL_ACTIONURL_KEYS,
     REFRESH_EVENT_TYPES,
 )
 from .sanitize import mask_webhook_id, sanitize_payload
@@ -57,7 +61,12 @@ _URL_TEMPLATES: Final[dict[str, str]] = {
     "InputBClosed": "?event=input_b_closed&status=$relay2status",
     "ValidCodeEntered": "?event=valid_code_entered&code=$code",
     "InvalidCodeEntered": "?event=invalid_code_entered",
+    "MakeCall": "?event=call_made&remote=$remote",
+    "HangUp": "?event=call_ended&remote=$remote",
 }
+
+# Query parameters kept in event data but never written to logs
+_LOG_REDACTED_PARAMS: Final[tuple[str, ...]] = ("remote",)
 
 
 def _normalize_event_type(raw_event: str) -> str:
@@ -226,6 +235,9 @@ async def async_handle_webhook(
     raw_event = query_params.get("event")
     if raw_event is None:
         sanitized = sanitize_payload(query_params, webhook_id=webhook_id)
+        for param in _LOG_REDACTED_PARAMS:
+            if param in sanitized:
+                sanitized[param] = "[REDACTED]"
         _LOGGER.warning(
             "Webhook missing 'event' parameter: %s",
             sanitized,
@@ -269,6 +281,7 @@ async def async_handle_webhook(
             "payload": {
                 "event": raw_event,
                 "status": query_params.get("status"),
+                "remote": query_params.get("remote"),
                 "device_user_id": (getattr(user, "id", None) if user else None),
                 "user_id": (getattr(user, "user_id", None) if user else None),
                 "username": (getattr(user, "name", None) if user else None),
@@ -383,6 +396,7 @@ def build_action_urls(
     webhook_id: str,
     *,
     warn_http: bool = True,
+    optional_keys: Collection[str] = (),
 ) -> tuple[dict[str, str], dict[str, str]]:
     """Build enable and disable payloads for device action URLs.
 
@@ -390,6 +404,8 @@ def build_action_urls(
         hass: The Home Assistant instance.
         webhook_id: The webhook ID for URL generation.
         warn_http: Log HTTPS warning (set False for disables).
+        optional_keys: Logical names from ``OPTIONAL_ACTIONURL_KEYS``
+            the device supports; unrecognized names are ignored.
 
     Returns:
         Tuple of (enable_payload, disable_payload) dicts.
@@ -413,6 +429,9 @@ def build_action_urls(
     for name, config_key in ACTIONURL_KEYS.items():
         template = _URL_TEMPLATES[name]
         action_urls[config_key] = f"{webhook_url}{template}"
+    for name, config_key in OPTIONAL_ACTIONURL_KEYS.items():
+        if name in optional_keys:
+            action_urls[config_key] = f"{webhook_url}{_URL_TEMPLATES[name]}"
 
     enable_payload: dict[str, str] = {
         ACTIONURL_ENABLE_KEY: "1",
