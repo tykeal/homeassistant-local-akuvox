@@ -45,7 +45,9 @@ async def async_reconcile_optional_action_urls(
 3. `supported = supported_optional_action_url_keys(config)`; empty → debug
    log, return.
 4. `enable_payload, _ = build_action_urls(hass, webhook_id, warn_http=False, optional_keys=supported)`.
-5. `updates = {key: enable_payload[key] for supported key if config.get(key) != enable_payload[key]}`.
+5. For each logical name `name` in `supported`, map it to its device key
+   `key = OPTIONAL_ACTIONURL_KEYS[name]`; `updates[key] = enable_payload[key]`
+   iff `config.get(key) != enable_payload[key]`.
 6. Empty `updates` → debug log, return (no write).
 7. `await device.set_device_config(updates)`; info log listing updated
    logical names and the masked webhook ID (no URLs).
